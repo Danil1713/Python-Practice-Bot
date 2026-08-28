@@ -17,7 +17,9 @@ router = Router()
 
 
 @router.callback_query(
-    F.data.startswith("menu:")
+    F.data.regexp(
+        r"^menu:(progress|xp|subscription|about):"
+    )
 )
 async def menu_section_handler(
     callback: CallbackQuery,
@@ -37,15 +39,7 @@ async def menu_section_handler(
         )
         return
 
-    if section == "projects":
-        text = (
-            f"<b>📚 Проекты — "
-            f"{course.title}</b>\n\n"
-            "Здесь скоро появится "
-            "список проектов."
-        )
-
-    elif section == "progress":
+    if section == "progress":
         text = (
             f"<b>📊 Прогресс — "
             f"{course.title}</b>\n\n"
@@ -127,7 +121,8 @@ async def back_to_menu_handler(
             "Выбери нужный раздел:"
         ),
         reply_markup=get_main_menu_keyboard(
-            course.slug
+            course_slug=course.slug,
+            requires_subscription=course.requires_subscription,
         ),
     )
 

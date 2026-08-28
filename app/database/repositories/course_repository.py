@@ -44,3 +44,17 @@ class CourseRepository:
         return list(
             result.scalars().all()
         )
+
+    async def get_by_id(
+            self,
+            course_id: int,
+    ) -> Course | None:
+        statement = select(Course).where(
+            Course.id == course_id
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return result.scalar_one_or_none()

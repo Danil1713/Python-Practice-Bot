@@ -17,15 +17,19 @@ async def has_active_subscription(
     course_slug: str,
 ) -> bool:
     async with async_session_factory() as session:
-        user_repository = UserRepository(
-            session
+        course_repository = CourseRepository(session)
+
+        course = await course_repository.get_by_slug(
+            course_slug
         )
-        course_repository = CourseRepository(
-            session
-        )
-        subscription_repository = (
-            SubscriptionRepository(session)
-        )
+
+        if course is None:
+            return False
+
+        if not course.requires_subscription:
+            return True
+
+        user_repository = UserRepository(session)
 
         user = await user_repository.get_by_telegram_id(
             telegram_user_id
@@ -34,12 +38,9 @@ async def has_active_subscription(
         if user is None:
             return False
 
-        course = await course_repository.get_by_slug(
-            course_slug
+        subscription_repository = (
+            SubscriptionRepository(session)
         )
-
-        if course is None:
-            return False
 
         subscription = (
             await subscription_repository

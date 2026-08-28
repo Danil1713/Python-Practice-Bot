@@ -66,7 +66,8 @@ async def select_course_handler(
     await callback.message.edit_text(
         text=text,
         reply_markup=get_main_menu_keyboard(
-            course.slug
+            course_slug=course.slug,
+            requires_subscription=course.requires_subscription,
         ),
     )
 
