@@ -4,6 +4,7 @@ from app.database.models.project import Project
 from app.database.models.subscription import Subscription
 from app.database.models.user import User
 from app.database.models.user_project import UserProject
+from app.database.models.attempt import Attempt
 
 
 __all__ = (
@@ -13,4 +14,5 @@ __all__ = (
     "Project",
     "Hint",
     "UserProject",
+    "Attempt",
 )

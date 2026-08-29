@@ -19,11 +19,15 @@ from app.database.repositories.user_repository import (
 from app.database.session import (
     async_session_factory,
 )
+from app.database.repositories.attempt_repository import (
+    AttemptRepository,
+)
 
 
 ProjectStatus = Literal[
     "locked",
     "available",
+    "pending",
     "completed",
 ]
 
@@ -74,6 +78,9 @@ async def get_course_projects(
         user_project_repository = (
             UserProjectRepository(session)
         )
+        attempt_repository = AttemptRepository(
+            session
+        )
 
         course = await course_repository.get_by_slug(
             course_slug
@@ -104,11 +111,28 @@ async def get_course_projects(
                 )
             )
 
+        pending_ids: set[int] = set()
+
+        if user is not None:
+            pending_ids = (
+                await attempt_repository
+                .get_pending_project_ids(
+                    user_id=user.id,
+                    project_ids=[
+                        project.id
+                        for project in projects
+                    ],
+                )
+            )
+
         items: list[ProjectListItem] = []
 
         for project in projects:
             if project.id in completed_ids:
                 status: ProjectStatus = "completed"
+
+            elif project.id in pending_ids:
+                status = "pending"
 
             elif project.published_at is None:
                 status = "locked"
@@ -152,6 +176,9 @@ async def get_project_card(
         hint_repository = HintRepository(
             session
         )
+        attempt_repository = AttemptRepository(
+            session
+        )
 
         project = await project_repository.get_by_id(
             project_id
@@ -182,8 +209,22 @@ async def get_project_card(
                 )
             )
 
+        pending_attempt = None
+
+        if user is not None:
+            pending_attempt = (
+                await attempt_repository
+                .get_active_for_project(
+                    user_id=user.id,
+                    project_id=project.id,
+                )
+            )
+
         if completed is not None:
             status: ProjectStatus = "completed"
+
+        elif pending_attempt is not None:
+            status = "pending"
 
         elif project.published_at is None:
             status = "locked"

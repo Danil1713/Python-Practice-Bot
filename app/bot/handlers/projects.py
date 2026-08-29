@@ -96,6 +96,14 @@ async def project_card_handler(
             f"<b>{project.awarded_xp} XP</b>"
         )
 
+    elif project.status == "pending":
+        status_text = "⏳ На проверке"
+
+        xp_text = (
+            f"Текущая награда проекта: "
+            f"<b>{project.current_xp} XP</b>"
+        )
+
     else:
         status_text = "🟡 Не выполнен"
 
@@ -168,60 +176,5 @@ async def project_task_handler(
     await callback.answer(
         "Ссылку на пост подключим вместе "
         "с системой публикаций.",
-        show_alert=True,
-    )
-
-
-@router.callback_query(
-    F.data.startswith("project:submit:")
-)
-async def project_submit_handler(
-    callback: CallbackQuery,
-) -> None:
-    project_id = int(
-        callback.data.split(":")[2]
-    )
-
-    project = await get_project_card(
-        telegram_user_id=callback.from_user.id,
-        project_id=project_id,
-    )
-
-    if project is None:
-        await callback.answer(
-            "Проект не найден.",
-            show_alert=True,
-        )
-        return
-
-    active = await has_active_subscription(
-        telegram_user_id=callback.from_user.id,
-        course_slug=project.course_slug,
-    )
-
-    if not active:
-        await callback.answer(
-            "🔒 Для отправки решения нужна "
-            "активная подписка.",
-            show_alert=True,
-        )
-        return
-
-    await callback.answer(
-        "Отправку решений подключим "
-        "на следующем этапе.",
-        show_alert=True,
-    )
-
-
-@router.callback_query(
-    F.data.startswith("project:attempts:")
-)
-async def project_attempts_handler(
-    callback: CallbackQuery,
-) -> None:
-    await callback.answer(
-        "Историю попыток подключим "
-        "на следующем этапе.",
         show_alert=True,
     )

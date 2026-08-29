@@ -11,6 +11,7 @@ from app.services.project_service import (
 STATUS_ICONS = {
     "locked": "🔒",
     "available": "🟡",
+    "pending": "⏳",
     "completed": "✅",
 }
 
