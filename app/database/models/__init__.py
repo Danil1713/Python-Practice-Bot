@@ -5,6 +5,7 @@ from app.database.models.subscription import Subscription
 from app.database.models.user import User
 from app.database.models.user_project import UserProject
 from app.database.models.attempt import Attempt
+from app.database.models.xp_transaction import XPTransaction
 
 
 __all__ = (
@@ -15,4 +16,5 @@ __all__ = (
     "Hint",
     "UserProject",
     "Attempt",
+    "XPTransaction",
 )

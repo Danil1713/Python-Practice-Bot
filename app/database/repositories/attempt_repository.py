@@ -1,5 +1,6 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timezone
 
 from app.database.models.attempt import Attempt
 
@@ -151,3 +152,66 @@ class AttemptRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def get_by_id(
+            self,
+            attempt_id: int,
+    ) -> Attempt | None:
+        statement = select(Attempt).where(
+            Attempt.id == attempt_id
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return result.scalar_one_or_none()
+
+    async def mark_checking(
+            self,
+            attempt: Attempt,
+    ) -> None:
+        attempt.status = "checking"
+
+        await self.session.flush()
+
+    async def mark_passed(
+            self,
+            attempt: Attempt,
+            feedback: str,
+    ) -> None:
+        attempt.status = "passed"
+        attempt.ai_feedback = feedback
+        attempt.error_message = None
+        attempt.checked_at = datetime.now(
+            timezone.utc
+        )
+
+        await self.session.flush()
+
+    async def mark_failed(
+            self,
+            attempt: Attempt,
+            feedback: str,
+    ) -> None:
+        attempt.status = "failed"
+        attempt.ai_feedback = feedback
+        attempt.error_message = None
+        attempt.checked_at = datetime.now(
+            timezone.utc
+        )
+
+        await self.session.flush()
+
+    async def mark_error(
+            self,
+            attempt: Attempt,
+            error_message: str,
+    ) -> None:
+        attempt.status = "error"
+        attempt.error_message = error_message
+        attempt.checked_at = datetime.now(
+            timezone.utc
+        )
+
+        await self.session.flush()

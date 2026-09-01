@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert
 
 from app.database.models.user_project import (
     UserProject,
@@ -48,6 +49,34 @@ class UserProjectRepository:
         ).where(
             UserProject.user_id == user_id,
             UserProject.project_id == project_id,
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return result.scalar_one_or_none()
+
+    async def complete_project(
+            self,
+            user_id: int,
+            project_id: int,
+            awarded_xp: int,
+    ) -> UserProject | None:
+        statement = (
+            insert(UserProject)
+            .values(
+                user_id=user_id,
+                project_id=project_id,
+                awarded_xp=awarded_xp,
+            )
+            .on_conflict_do_nothing(
+                index_elements=[
+                    UserProject.user_id,
+                    UserProject.project_id,
+                ]
+            )
+            .returning(UserProject)
         )
 
         result = await self.session.execute(

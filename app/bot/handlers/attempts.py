@@ -1,5 +1,6 @@
 from io import BytesIO
 from html import escape
+import asyncio
 
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
@@ -31,13 +32,15 @@ from app.services.project_service import (
 from app.services.subscription_service import (
     has_active_subscription,
 )
+from app.services.attempt_check_service import (
+    check_attempt,
+)
 
 
 router = Router()
 
 
 MAX_SOLUTION_FILE_SIZE = 200 * 1024
-
 
 @router.callback_query(
     F.data.startswith("project:submit:")
@@ -290,6 +293,10 @@ async def solution_file_handler(
             project_id=project_id,
             filename=filename,
             source_code=source_code,
+        )
+
+        asyncio.create_task(
+            check_attempt(attempt.id)
         )
 
     except AttemptAlreadyPending:

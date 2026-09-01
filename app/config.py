@@ -20,6 +20,11 @@ def get_required_env(name: str) -> str:
 def get_bot_token() -> str:
     return get_required_env("BOT_TOKEN")
 
-
 def get_database_url() -> str:
     return get_required_env("DATABASE_URL")
+
+def get_openai_api_key() -> str:
+    return get_required_env("OPENAI_API_KEY")
+
+def get_gemini_api_key() -> str:
+    return get_required_env("GEMINI_API_KEY")
