@@ -1,3 +1,4 @@
+from aiogram import Bot
 from app.database.repositories.attempt_repository import (
     AttemptRepository,
 )
@@ -17,10 +18,19 @@ from app.services.ai_service import (
     format_review_feedback,
     review_python_code,
 )
+from app.bot.keyboards.projects import (
+    get_project_card_keyboard,
+)
+from app.database.repositories.course_repository import (
+    CourseRepository,
+)
 
 
 async def check_attempt(
     attempt_id: int,
+    bot: Bot,
+    chat_id: int,
+    status_message_id: int,
 ) -> None:
     async with async_session_factory() as session:
         attempt_repository = AttemptRepository(
@@ -68,26 +78,72 @@ async def check_attempt(
                 source_code=attempt.source_code,
             )
 
+
         except Exception as error:
             async with async_session_factory() as error_session:
-                error_attempt_repository = (
-                    AttemptRepository(
-                        error_session
-                    )
+                error_attempt_repository = AttemptRepository(
+                    error_session
+                )
+
+                error_project_repository = ProjectRepository(
+                    error_session
+                )
+
+                error_course_repository = CourseRepository(
+                    error_session
                 )
 
                 error_attempt = (
-                    await error_attempt_repository
-                    .get_by_id(attempt_id)
+                    await error_attempt_repository.get_by_id(
+                        attempt_id
+                    )
                 )
 
-                if error_attempt is not None:
-                    await error_attempt_repository.mark_error(
-                        error_attempt,
-                        str(error),
-                    )
+                if error_attempt is None:
+                    return
 
-                    await error_session.commit()
+                await error_attempt_repository.mark_error(
+                    error_attempt,
+                    str(error),
+                )
+
+                error_project = (
+                    await error_project_repository.get_by_id(
+                        error_attempt.project_id
+                    )
+                )
+
+                await error_session.commit()
+
+                if error_project is None:
+                    return
+
+                error_course = (
+                    await error_course_repository.get_by_id(
+                        error_project.course_id
+                    )
+                )
+
+                if error_course is None:
+                    return
+
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=status_message_id,
+                    text=(
+                        f"⚠️ <b>Не удалось проверить "
+                        f"Project {error_project.number}.</b>\n\n"
+                        f"{error_project.title}\n\n"
+                        "Статус: ⚠️ Ошибка проверки\n\n"
+                        "Решение сохранено. "
+                        "Попробуй повторить проверку позже."
+                    ),
+
+                    reply_markup=get_project_card_keyboard(
+                        project_id=error_project.id,
+                        course_slug=error_course.slug,
+                    ),
+                )
 
             return
 
@@ -158,3 +214,41 @@ async def check_attempt(
                 )
 
             await result_session.commit()
+
+            if result.passed:
+                result_text = (
+                    f"✅ <b>Проверка Project "
+                    f"{project.number} завершена.</b>\n\n"
+                    f"{project.title}\n\n"
+                    f"Статус: ✅ Принято\n\n"
+                    "Подробный результат доступен "
+                    "в разделе <b>«Мои попытки»</b>."
+                )
+            else:
+                result_text = (
+                    f"❌ <b>Project "
+                    f"{project.number} пока не принят.</b>\n\n"
+                    f"{project.title}\n\n"
+                    f"Статус: ❌ Не принято\n\n"
+                    "Подробный результат доступен "
+                    "в разделе <b>«Мои попытки»</b>."
+                )
+
+            course_repository = CourseRepository(
+                result_session
+            )
+
+            course = await course_repository.get_by_id(
+                project.course_id
+            )
+
+            if course is not None:
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=status_message_id,
+                    text=result_text,
+                    reply_markup=get_project_card_keyboard(
+                        project_id=project.id,
+                        course_slug=course.slug,
+                    ),
+                )

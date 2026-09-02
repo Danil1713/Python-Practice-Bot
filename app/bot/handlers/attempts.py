@@ -295,10 +295,6 @@ async def solution_file_handler(
             source_code=source_code,
         )
 
-        asyncio.create_task(
-            check_attempt(attempt.id)
-        )
-
     except AttemptAlreadyPending:
         await state.clear()
 
@@ -326,7 +322,7 @@ async def solution_file_handler(
     if project is None:
         return
 
-    await message.answer(
+    status_message = await message.answer(
         text=(
             "✅ <b>Решение получено.</b>\n\n"
             f"Попытка №{attempt.number}\n\n"
@@ -342,6 +338,15 @@ async def solution_file_handler(
             project_id=project.id,
             course_slug=project.course_slug,
         ),
+    )
+
+    asyncio.create_task(
+        check_attempt(
+            attempt_id=attempt.id,
+            bot=bot,
+            chat_id=message.chat.id,
+            status_message_id=status_message.message_id,
+        )
     )
 
 
