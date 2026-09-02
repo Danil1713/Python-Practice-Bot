@@ -18,7 +18,7 @@ router = Router()
 
 @router.callback_query(
     F.data.regexp(
-        r"^menu:(progress|xp|subscription|about):"
+        r"^menu:(subscription|about):"
     )
 )
 async def menu_section_handler(
@@ -39,23 +39,7 @@ async def menu_section_handler(
         )
         return
 
-    if section == "progress":
-        text = (
-            f"<b>📊 Прогресс — "
-            f"{course.title}</b>\n\n"
-            "Здесь будет отображаться "
-            "твой прогресс."
-        )
-
-    elif section == "xp":
-        text = (
-            f"<b>⭐ XP — "
-            f"{course.title}</b>\n\n"
-            "Здесь будет твой XP "
-            "и история начислений."
-        )
-
-    elif section == "subscription":
+    if section == "subscription":
         active = (
             await has_active_subscription(
                 telegram_user_id=callback.from_user.id,

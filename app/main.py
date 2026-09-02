@@ -13,6 +13,8 @@ from app.bot.handlers.start import router as start_router
 from app.bot.handlers.hints import router as hints_router
 from app.bot.handlers.projects import router as projects_router
 from app.bot.handlers.attempts import router as attempts_router
+from app.bot.handlers.progress import router as progress_router
+from app.bot.handlers.xp import router as xp_router
 from app.config import get_bot_token
 
 
@@ -33,6 +35,8 @@ async def main() -> None:
     dispatcher.include_router(attempts_router)
     dispatcher.include_router(projects_router)
     dispatcher.include_router(hints_router)
+    dispatcher.include_router(progress_router)
+    dispatcher.include_router(xp_router)
     dispatcher.include_router(menu_router)
 
     await bot.delete_webhook(drop_pending_updates=True)

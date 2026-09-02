@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
@@ -84,3 +84,26 @@ class UserProjectRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def count_completed_by_projects(
+            self,
+            user_id: int,
+            project_ids: list[int],
+    ) -> int:
+        if not project_ids:
+            return 0
+
+        statement = select(
+            func.count(UserProject.id)
+        ).where(
+            UserProject.user_id == user_id,
+            UserProject.project_id.in_(
+                project_ids
+            ),
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return int(result.scalar_one())
