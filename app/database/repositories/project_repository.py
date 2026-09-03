@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 
 from app.database.models.project import Project
 
@@ -44,3 +45,16 @@ class ProjectRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def mark_published(
+            self,
+            project: Project,
+            published_at: datetime,
+            telegram_message_id: int,
+    ) -> None:
+        project.published_at = published_at
+        project.telegram_message_id = (
+            telegram_message_id
+        )
+
+        await self.session.flush()

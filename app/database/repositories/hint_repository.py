@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 
 from app.database.models.hint import Hint
 
@@ -67,3 +68,16 @@ class HintRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def mark_published(
+            self,
+            hint: Hint,
+            published_at: datetime,
+            telegram_message_id: int,
+    ) -> None:
+        hint.published_at = published_at
+        hint.telegram_message_id = (
+            telegram_message_id
+        )
+
+        await self.session.flush()

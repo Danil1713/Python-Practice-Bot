@@ -6,6 +6,7 @@ from app.database.models.user import User
 from app.database.models.user_project import UserProject
 from app.database.models.attempt import Attempt
 from app.database.models.xp_transaction import XPTransaction
+from app.database.models.scheduled_post import ScheduledPost
 
 
 __all__ = (
@@ -17,4 +18,5 @@ __all__ = (
     "UserProject",
     "Attempt",
     "XPTransaction",
+    "ScheduledPost",
 )

@@ -15,6 +15,8 @@ from app.bot.handlers.projects import router as projects_router
 from app.bot.handlers.attempts import router as attempts_router
 from app.bot.handlers.progress import router as progress_router
 from app.bot.handlers.xp import router as xp_router
+from app.database.session import engine
+from app.scheduler.publishing import run_publishing_scheduler
 from app.config import get_bot_token
 
 
@@ -24,6 +26,10 @@ async def main() -> None:
         default=DefaultBotProperties(
             parse_mode=ParseMode.HTML,
         ),
+    )
+
+    scheduler_task = asyncio.create_task(
+        run_publishing_scheduler(bot)
     )
 
     dispatcher = Dispatcher(
@@ -41,7 +47,19 @@ async def main() -> None:
 
     await bot.delete_webhook(drop_pending_updates=True)
 
-    await dispatcher.start_polling(bot)
+    try:
+        await dispatcher.start_polling(bot)
+
+    finally:
+        scheduler_task.cancel()
+
+        try:
+            await scheduler_task
+
+        except asyncio.CancelledError:
+            pass
+
+        await engine.dispose()
 
 
 if __name__ == "__main__":
