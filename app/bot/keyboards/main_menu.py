@@ -4,6 +4,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 def get_main_menu_keyboard(
     course_slug: str,
     requires_subscription: bool = True,
+    is_admin_user: bool = False,
 ) -> InlineKeyboardMarkup:
     buttons = [
         [
@@ -34,21 +35,32 @@ def get_main_menu_keyboard(
             ]
         )
 
-    buttons.extend(
-        [
+    buttons.append(
             [
                 InlineKeyboardButton(
                     text="ℹ️ О курсе",
                     callback_data=f"menu:about:{course_slug}",
                 )
             ],
+    )
+    if is_admin_user:
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    text="⚙️ Админ-панель",
+                    callback_data=(
+                        f"admin:menu:{course_slug}"
+                    ),
+                )
+            ]
+        )
+    buttons.append(
             [
                 InlineKeyboardButton(
                     text="🔄 Сменить уровень",
                     callback_data="nav:courses",
                 )
             ],
-        ]
     )
 
     return InlineKeyboardMarkup(

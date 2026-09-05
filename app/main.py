@@ -17,6 +17,7 @@ from app.bot.handlers.progress import router as progress_router
 from app.bot.handlers.xp import router as xp_router
 from app.database.session import engine
 from app.scheduler.publishing import run_publishing_scheduler
+from app.bot.handlers.admin import router as admin_router
 from app.config import get_bot_token
 
 
@@ -36,6 +37,7 @@ async def main() -> None:
         storage=MemoryStorage()
     )
 
+    dispatcher.include_router(admin_router)
     dispatcher.include_router(start_router)
     dispatcher.include_router(courses_router)
     dispatcher.include_router(attempts_router)

@@ -127,3 +127,76 @@ class ScheduledPostRepository:
         await self.session.flush()
 
         return len(posts)
+
+    async def create(
+            self,
+            *,
+            course_id: int,
+            post_type: str,
+            content: str,
+            scheduled_at: datetime,
+            project_id: int | None = None,
+            hint_id: int | None = None,
+    ) -> ScheduledPost:
+        post = ScheduledPost(
+            course_id=course_id,
+            post_type=post_type,
+            project_id=project_id,
+            hint_id=hint_id,
+            content=content,
+            scheduled_at=scheduled_at,
+            status="scheduled",
+        )
+
+        self.session.add(post)
+
+        await self.session.flush()
+
+        return post
+
+    async def reschedule(
+            self,
+            post: ScheduledPost,
+            scheduled_at: datetime,
+    ) -> None:
+        post.scheduled_at = scheduled_at
+        post.status = "scheduled"
+        post.error_message = None
+
+        await self.session.flush()
+
+    async def cancel(
+            self,
+            post: ScheduledPost,
+    ) -> None:
+        post.status = "cancelled"
+
+        await self.session.flush()
+
+    async def get_manageable_by_course(
+            self,
+            course_id: int,
+    ) -> list[ScheduledPost]:
+        statement = (
+            select(ScheduledPost)
+            .where(
+                ScheduledPost.course_id == course_id,
+                ScheduledPost.status.in_(
+                    [
+                        "scheduled",
+                        "failed",
+                    ]
+                ),
+            )
+            .order_by(
+                ScheduledPost.scheduled_at
+            )
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return list(
+            result.scalars().all()
+        )

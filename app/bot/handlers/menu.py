@@ -11,6 +11,9 @@ from app.services.course_service import (
 from app.services.subscription_service import (
     has_active_subscription,
 )
+from app.services.admin_service import (
+    is_admin,
+)
 
 
 router = Router()
@@ -107,6 +110,9 @@ async def back_to_menu_handler(
         reply_markup=get_main_menu_keyboard(
             course_slug=course.slug,
             requires_subscription=course.requires_subscription,
+            is_admin_user=is_admin(
+                callback.from_user.id
+            ),
         ),
     )
 
