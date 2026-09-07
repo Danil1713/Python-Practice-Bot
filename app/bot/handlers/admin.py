@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.config import get_admin_timezone
+from app.config import get_app_timezone
 
 from app.bot.keyboards.admin import (
     get_admin_menu_keyboard,
@@ -384,7 +384,7 @@ async def admin_reschedule_datetime_handler(
         return
 
     timezone = ZoneInfo(
-        get_admin_timezone()
+        get_app_timezone()
     )
 
     local_datetime = (
@@ -443,7 +443,7 @@ def format_admin_datetime(
     value: datetime,
 ) -> str:
     timezone = ZoneInfo(
-        get_admin_timezone()
+        get_app_timezone()
     )
 
     local_value = value.astimezone(
@@ -769,7 +769,7 @@ async def admin_add_datetime_handler(
         return
 
     timezone = ZoneInfo(
-        get_admin_timezone()
+        get_app_timezone()()
     )
 
     scheduled_at = (

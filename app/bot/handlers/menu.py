@@ -21,7 +21,7 @@ router = Router()
 
 @router.callback_query(
     F.data.regexp(
-        r"^menu:(subscription|about):"
+        r"^menu:(about):"
     )
 )
 async def menu_section_handler(
@@ -42,29 +42,7 @@ async def menu_section_handler(
         )
         return
 
-    if section == "subscription":
-        active = (
-            await has_active_subscription(
-                telegram_user_id=callback.from_user.id,
-                course_slug=course.slug,
-            )
-        )
-
-        if active:
-            text = (
-                f"<b>💳 Подписка — "
-                f"{course.title}</b>\n\n"
-                "✅ Подписка активна."
-            )
-        else:
-            text = (
-                f"<b>💳 Подписка — "
-                f"{course.title}</b>\n\n"
-                "❌ Активной подписки "
-                "пока нет."
-            )
-
-    elif section == "about":
+    if section == "about":
         text = (
             f"<b>ℹ️ {course.title}</b>\n\n"
             f"{course.description or ''}"

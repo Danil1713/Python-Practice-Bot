@@ -40,8 +40,8 @@ def get_admin_telegram_ids() -> set[int]:
         if item.strip()
     }
 
-def get_admin_timezone() -> str:
+def get_app_timezone() -> str:
     return os.getenv(
-        "ADMIN_TIMEZONE",
+        "APP_TIMEZONE",
         "Europe/Moscow",
     )
