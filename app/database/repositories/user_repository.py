@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,3 +63,39 @@ class UserRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def search(
+            self,
+            value: str,
+    ) -> list[User]:
+        clean_value = value.strip().lstrip("@")
+
+        conditions = []
+
+        if clean_value.isdigit():
+            conditions.append(
+                User.telegram_id == int(clean_value)
+            )
+        else:
+            conditions.append(
+                User.username.ilike(
+                    clean_value
+                )
+            )
+
+        statement = (
+            select(User)
+            .where(
+                or_(*conditions)
+            )
+            .order_by(User.id)
+            .limit(20)
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return list(
+            result.scalars().all()
+        )

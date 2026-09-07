@@ -37,3 +37,51 @@ class SubscriptionRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def get_by_user_and_course(
+            self,
+            user_id: int,
+            course_id: int,
+    ) -> Subscription | None:
+        statement = select(
+            Subscription
+        ).where(
+            Subscription.user_id == user_id,
+            Subscription.course_id == course_id,
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return result.scalar_one_or_none()
+
+    async def save(
+            self,
+            subscription: Subscription,
+    ) -> None:
+        self.session.add(subscription)
+
+        await self.session.flush()
+
+    async def get_all_for_user(
+            self,
+            user_id: int,
+    ) -> list[Subscription]:
+        statement = (
+            select(Subscription)
+            .where(
+                Subscription.user_id == user_id
+            )
+            .order_by(
+                Subscription.created_at.desc()
+            )
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return list(
+            result.scalars().all()
+        )

@@ -13,3 +13,7 @@ class AdminScheduleStates(StatesGroup):
     waiting_for_content = State()
     waiting_for_datetime = State()
     confirming = State()
+    searching_subscription_user = State()
+    choosing_subscription_user = State()
+    waiting_for_subscription_days = State()
+    confirming_subscription = State()

@@ -6,34 +6,53 @@ from aiogram.types import (
 
 def get_admin_menu_keyboard(
     course_slug: str,
+    requires_subscription: bool,
 ) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
+    rows = [
+        [
+            InlineKeyboardButton(
+                text="📅 Расписание",
+                callback_data=(
+                    f"admin:schedule:{course_slug}"
+                ),
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="➕ Добавить публикацию",
+                callback_data=(
+                    f"admin:add:start:{course_slug}"
+                ),
+            )
+        ],
+    ]
+
+    if requires_subscription:
+        rows.append(
             [
                 InlineKeyboardButton(
-                    text="📅 Расписание",
+                    text="👤 Подписки",
                     callback_data=(
-                        f"admin:schedule:{course_slug}"
+                        f"admin:subscriptions:"
+                        f"{course_slug}"
                     ),
                 )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="➕ Добавить публикацию",
-                    callback_data=(
-                        f"admin:add:start:{course_slug}"
-                    ),
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⬅️ Назад",
-                    callback_data=(
-                        f"nav:menu:{course_slug}"
-                    ),
-                )
-            ],
+            ]
+        )
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=(
+                    f"nav:menu:{course_slug}"
+                ),
+            )
         ]
+    )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=rows
     )
 
 def get_schedule_keyboard(
@@ -302,4 +321,69 @@ def get_schedule_confirm_keyboard(
                 )
             ],
         ]
+    )
+
+def get_subscription_users_keyboard(
+    users: list,
+) -> InlineKeyboardMarkup:
+    rows = []
+
+    for user in users:
+        if user.username:
+            label = (
+                f"@{user.username} "
+                f"({user.telegram_id})"
+            )
+        else:
+            label = str(
+                user.telegram_id
+            )
+
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=label,
+                    callback_data=(
+                        f"admin:sub:user:"
+                        f"{user.id}"
+                    ),
+                )
+            ]
+        )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=rows
+    )
+
+
+def get_subscription_confirm_keyboard(
+    show_confirm: bool = True,
+) -> InlineKeyboardMarkup:
+    rows = []
+
+    if show_confirm:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="✅ Подтвердить",
+                    callback_data=(
+                        "admin:sub:confirm"
+                    ),
+                )
+            ]
+        )
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="❌ Отмена",
+                callback_data=(
+                    "admin:sub:cancel"
+                ),
+            )
+        ]
+    )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=rows
     )
