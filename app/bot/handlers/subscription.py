@@ -7,7 +7,8 @@ from aiogram.types import CallbackQuery
 from app.bot.keyboards.subscription import (
     get_subscription_keyboard, format_subscription_datetime,
 )
-from app.config import get_app_timezone
+from app.config import get_app_timezone, get_admin_username
+from app.services.pricing_service import get_subscription_plan
 from app.services.subscription_service import (
     get_subscription_view,
 )
@@ -26,6 +27,10 @@ async def subscription_handler(
     view = await get_subscription_view(
         telegram_user_id=callback.from_user.id,
         course_slug=course_slug,
+    )
+
+    plan = get_subscription_plan(
+        course_slug
     )
 
     if view is None:
@@ -79,7 +84,17 @@ async def subscription_handler(
     await callback.message.edit_text(
         text=text,
         reply_markup=get_subscription_keyboard(
-            course_slug
+            course_slug=course_slug,
+            can_pay=(
+                    view.requires_subscription
+                    and plan is not None
+            ),
+            stars_price=(
+                plan.stars_price
+                if plan is not None
+                else None
+            ),
+            admin_username=get_admin_username(),
         ),
     )
 

@@ -100,3 +100,21 @@ class PaymentRepository:
         payment.status = "cancelled"
 
         await self.session.flush()
+
+    async def get_by_id_for_update(
+            self,
+            payment_id: int,
+    ) -> Payment | None:
+        statement = (
+            select(Payment)
+            .where(
+                Payment.id == payment_id
+            )
+            .with_for_update()
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return result.scalar_one_or_none()

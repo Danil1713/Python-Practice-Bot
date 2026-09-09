@@ -19,6 +19,7 @@ from app.database.session import engine
 from app.scheduler.publishing import run_publishing_scheduler
 from app.bot.handlers.admin import router as admin_router
 from app.bot.handlers.subscription import router as subscription_router
+from app.bot.handlers.payments import router as payments_router
 from app.config import get_bot_token
 
 
@@ -38,6 +39,7 @@ async def main() -> None:
         storage=MemoryStorage()
     )
 
+    dispatcher.include_router (payments_router)
     dispatcher.include_router(subscription_router)
     dispatcher.include_router(admin_router)
     dispatcher.include_router(start_router)

@@ -4,19 +4,19 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class SubscriptionPlan:
     course_slug: str
-    price: int
+    stars_price: int
     days: int
 
 
 PLANS = {
-    "python-start": SubscriptionPlan(
+    "python_start": SubscriptionPlan(
         course_slug="python-start",
-        price=69900,
+        stars_price=350,
         days=30,
     ),
-    "python-practice": SubscriptionPlan(
+    "python_practice": SubscriptionPlan(
         course_slug="python-practice",
-        price=99900,
+        stars_price=500,
         days=30,
     ),
 }

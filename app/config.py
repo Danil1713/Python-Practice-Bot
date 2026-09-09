@@ -45,3 +45,8 @@ def get_app_timezone() -> str:
         "APP_TIMEZONE",
         "Europe/Moscow",
     )
+
+def get_admin_username() -> str:
+    return get_required_env(
+        "ADMIN_USERNAME"
+    ).lstrip("@")
