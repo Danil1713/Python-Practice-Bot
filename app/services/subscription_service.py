@@ -1,6 +1,8 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.models import Subscription
 from app.database.repositories.course_repository import (
     CourseRepository,
 )
@@ -136,3 +138,68 @@ async def get_subscription_view(
             starts_at=subscription.starts_at,
             ends_at=subscription.ends_at,
         )
+
+
+async def activate_or_extend_subscription_in_session(
+        *,
+        session: AsyncSession,
+        user_id: int,
+        course_id: int,
+        days: int,
+):
+    if days <= 0:
+        raise ValueError(
+            "Количество дней должно быть больше 0."
+        )
+
+    now = datetime.now(timezone.utc)
+
+    repository = SubscriptionRepository(
+        session
+    )
+
+    subscription = (
+        await repository.get_by_user_and_course(
+            user_id=user_id,
+            course_id=course_id,
+        )
+    )
+
+    if subscription is None:
+        subscription = Subscription(
+            user_id=user_id,
+            course_id=course_id,
+            status="active",
+            starts_at=now,
+            ends_at=(
+                    now
+                    + timedelta(days=days)
+            ),
+        )
+
+        await repository.save(
+            subscription
+        )
+
+    else:
+        if (
+                subscription.status == "active"
+                and subscription.ends_at > now
+        ):
+            subscription.ends_at = (
+                    subscription.ends_at
+                    + timedelta(days=days)
+            )
+
+        else:
+            subscription.starts_at = now
+            subscription.ends_at = (
+                    now
+                    + timedelta(days=days)
+            )
+
+        subscription.status = "active"
+
+    await session.flush()
+
+    return subscription
