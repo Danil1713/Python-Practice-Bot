@@ -1,7 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.config import get_app_timezone
+from app.config import get_app_timezone, get_admin_username
 
 from aiogram.types import (
     InlineKeyboardButton,
@@ -45,6 +45,17 @@ def get_subscription_keyboard(
                 )
             ]
         )
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="🆘 Помощь с оплатой",
+                callback_data=(
+                    f"payment:support:{course_slug}"
+                ),
+            )
+        ]
+    )
 
     rows.append(
         [
@@ -99,4 +110,34 @@ def get_stars_invoice_keyboard(
                 )
             ],
         ]
+    )
+
+def get_payment_support_keyboard(
+    course_slug: str | None = None,
+) -> InlineKeyboardMarkup:
+    admin_username = get_admin_username()
+
+    rows = [
+        [
+            InlineKeyboardButton(
+                text="💬 Написать администратору",
+                url=f"https://t.me/{admin_username}",
+            )
+        ]
+    ]
+
+    if course_slug is not None:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=(
+                        f"menu:subscription:{course_slug}"
+                    ),
+                )
+            ]
+        )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=rows
     )

@@ -1,4 +1,5 @@
 from aiogram import Bot, F, Router
+from aiogram.filters import Command
 from aiogram.types import (
     CallbackQuery,
     LabeledPrice,
@@ -6,7 +7,8 @@ from aiogram.types import (
     PreCheckoutQuery,
 )
 
-from app.bot.keyboards.subscription import get_stars_invoice_keyboard, get_subscription_keyboard
+from app.bot.keyboards.subscription import get_stars_invoice_keyboard, get_subscription_keyboard, \
+    get_payment_support_keyboard
 from app.config import get_admin_username
 from app.services.payment_service import (
     PaymentError,
@@ -286,3 +288,50 @@ async def cancel_stars_payment_handler(
             admin_username=get_admin_username(),
         ),
     )
+
+async def show_payment_support(
+    message: Message,
+) -> None:
+    await message.answer(
+        text=(
+            "💳 <b>Поддержка по оплате</b>\n\n"
+            "Если возникла проблема с оплатой, "
+            "списанием Stars или активацией подписки, "
+            "напиши администратору.\n\n"
+            "При обращении укажи:\n"
+            "• какой курс покупал;\n"
+            "• примерное время оплаты;\n"
+            "• что именно произошло."
+        ),
+        reply_markup=get_payment_support_keyboard(),
+    )
+
+@router.message(Command("paysupport"))
+async def payment_support_handler(
+    message: Message,
+) -> None:
+    await show_payment_support(message)
+
+@router.callback_query(
+    F.data.startswith("payment:support:")
+)
+async def payment_support_callback_handler(
+    callback: CallbackQuery,
+) -> None:
+    course_slug = callback.data.split(":")[2]
+
+    await callback.message.edit_text(
+        text=(
+            "💳 <b>Поддержка по оплате</b>\n\n"
+            "Если возникла проблема с оплатой, "
+            "списанием Stars или активацией подписки, "
+            "напиши администратору.\n\n"
+            "При обращении укажи:\n"
+            "• какой курс покупал;\n"
+            "• примерное время оплаты;\n"
+            "• что именно произошло."
+        ),
+        reply_markup=get_payment_support_keyboard(course_slug),
+    )
+
+    await callback.answer()
