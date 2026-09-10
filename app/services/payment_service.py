@@ -106,7 +106,7 @@ async def create_payment(
             course_id=course.id,
             provider=provider,
             amount=amount,
-            currency="RUB",
+            currency=currency,
             subscription_days=subscription_days,
         )
 
@@ -240,7 +240,10 @@ async def process_telegram_stars_payment(
         if payment.status == "succeeded":
             return False
 
-        if payment.status != "pending":
+        if payment.status not in {
+            "pending",
+            "cancelled",
+        }:
             raise PaymentError(
                 "Платёж уже нельзя обработать."
             )
@@ -305,8 +308,11 @@ async def cancel_payment(
             session
         )
 
-        payment = await payment_repository.get_by_id(
-            payment_id
+        payment = (
+            await payment_repository
+            .get_by_id_for_update(
+                payment_id
+            )
         )
 
         if payment is None:

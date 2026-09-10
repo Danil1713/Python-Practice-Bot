@@ -51,7 +51,9 @@ async def main() -> None:
     dispatcher.include_router(xp_router)
     dispatcher.include_router(menu_router)
 
-    await bot.delete_webhook(drop_pending_updates=True)
+    await bot.delete_webhook(
+        drop_pending_updates=False
+    )
 
     try:
         await dispatcher.start_polling(bot)

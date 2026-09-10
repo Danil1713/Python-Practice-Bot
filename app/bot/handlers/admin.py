@@ -769,7 +769,7 @@ async def admin_add_datetime_handler(
         return
 
     timezone = ZoneInfo(
-        get_app_timezone()()
+        get_app_timezone()
     )
 
     scheduled_at = (
