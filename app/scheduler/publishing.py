@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime, timezone, timedelta
 
 from aiogram import Bot
@@ -13,6 +14,7 @@ from app.services.publishing_service import (
     publish_scheduled_post,
 )
 
+logger = logging.getLogger(__name__)
 
 CHECK_INTERVAL_SECONDS = 30
 STUCK_AFTER_MINUTES = 5
@@ -46,8 +48,10 @@ async def run_publishing_scheduler(
                 )
 
                 if recovered > 0:
-                    print(
-                        f"Recovered stuck posts: {recovered}"
+                    logger.warning(
+                        "Marked %s stuck posts "
+                        "for manual review",
+                        recovered,
                     )
 
                 await session.commit()
@@ -70,10 +74,9 @@ async def run_publishing_scheduler(
         except asyncio.CancelledError:
             raise
 
-        except Exception as error:
-            print(
-                "Publishing scheduler error:",
-                error,
+        except Exception:
+            logger.exception(
+                "Publishing scheduler failed"
             )
 
         await asyncio.sleep(

@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
@@ -17,6 +17,22 @@ class AttemptRepository:
         session: AsyncSession,
     ) -> None:
         self.session = session
+
+    async def lock_attempt_creation(
+            self,
+            user_id: int,
+            project_id: int,
+    ) -> None:
+        statement = select(
+            func.pg_advisory_xact_lock(
+                user_id,
+                project_id,
+            )
+        )
+
+        await self.session.execute(
+            statement
+        )
 
     async def get_next_attempt_number(
         self,
@@ -183,6 +199,7 @@ class AttemptRepository:
         attempt.status = "passed"
         attempt.ai_feedback = feedback
         attempt.error_message = None
+        attempt.checking_started_at = None
         attempt.checked_at = datetime.now(
             timezone.utc
         )
@@ -197,6 +214,7 @@ class AttemptRepository:
         attempt.status = "failed"
         attempt.ai_feedback = feedback
         attempt.error_message = None
+        attempt.checking_started_at = None
         attempt.checked_at = datetime.now(
             timezone.utc
         )
@@ -210,8 +228,102 @@ class AttemptRepository:
     ) -> None:
         attempt.status = "error"
         attempt.error_message = error_message
+        attempt.checking_started_at = None
         attempt.checked_at = datetime.now(
             timezone.utc
         )
 
         await self.session.flush()
+
+    async def get_pending(
+            self,
+            limit: int = 10,
+    ) -> list[Attempt]:
+        statement = (
+            select(Attempt)
+            .where(
+                Attempt.status == "pending"
+            )
+            .order_by(
+                Attempt.submitted_at.asc()
+            )
+            .limit(limit)
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return list(
+            result.scalars().all()
+        )
+
+    async def set_status_message(
+            self,
+            attempt: Attempt,
+            chat_id: int,
+            message_id: int,
+    ) -> None:
+        attempt.status_chat_id = chat_id
+        attempt.status_message_id = message_id
+
+        await self.session.flush()
+
+    async def claim_pending(
+            self,
+            attempt_id: int,
+    ) -> bool:
+        statement = (
+            update(Attempt)
+            .where(
+                Attempt.id == attempt_id,
+                Attempt.status == "pending",
+            )
+            .values(
+                status="checking",
+                checking_started_at=datetime.now(
+                    timezone.utc
+                ),
+            )
+            .returning(
+                Attempt.id
+            )
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        claimed_id = result.scalar_one_or_none()
+
+        return claimed_id is not None
+
+    async def recover_stuck_checking(
+            self,
+            before: datetime,
+    ) -> int:
+        statement = select(
+            Attempt
+        ).where(
+            Attempt.status == "checking",
+            Attempt.checking_started_at.is_not(
+                None
+            ),
+            Attempt.checking_started_at <= before,
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        attempts = list(
+            result.scalars().all()
+        )
+
+        for attempt in attempts:
+            attempt.status = "pending"
+            attempt.checking_started_at = None
+
+        await self.session.flush()
+
+        return len(attempts)

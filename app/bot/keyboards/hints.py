@@ -21,18 +21,28 @@ def get_hints_keyboard(
             else "🔒"
         )
 
+        if hint.telegram_url is not None:
+            button = InlineKeyboardButton(
+                text=(
+                    f"{icon} Подсказка "
+                    f"{hint.number}"
+                ),
+                url=hint.telegram_url,
+            )
+
+        else:
+            button = InlineKeyboardButton(
+                text=(
+                    f"{icon} Подсказка "
+                    f"{hint.number}"
+                ),
+                callback_data=(
+                    f"hint:open:{hint.id}"
+                ),
+            )
+
         buttons.append(
-            [
-                InlineKeyboardButton(
-                    text=(
-                        f"{icon} Подсказка "
-                        f"{hint.number}"
-                    ),
-                    callback_data=(
-                        f"hint:open:{hint.id}"
-                    ),
-                )
-            ]
+            [button]
         )
 
     buttons.append(

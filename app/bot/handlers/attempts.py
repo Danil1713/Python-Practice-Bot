@@ -1,6 +1,5 @@
 from io import BytesIO
 from html import escape
-import asyncio
 
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
@@ -25,15 +24,13 @@ from app.services.attempt_service import (
     create_attempt,
     get_attempt_detail,
     get_project_attempts,
+    save_attempt_status_message,
 )
 from app.services.project_service import (
     get_project_card,
 )
 from app.services.subscription_service import (
     has_active_subscription,
-)
-from app.services.attempt_check_service import (
-    check_attempt,
 )
 
 
@@ -340,13 +337,10 @@ async def solution_file_handler(
         ),
     )
 
-    asyncio.create_task(
-        check_attempt(
-            attempt_id=attempt.id,
-            bot=bot,
-            chat_id=message.chat.id,
-            status_message_id=status_message.message_id,
-        )
+    await save_attempt_status_message(
+        attempt_id=attempt.id,
+        chat_id=message.chat.id,
+        message_id=status_message.message_id,
     )
 
 

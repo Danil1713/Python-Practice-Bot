@@ -59,6 +59,7 @@ class ProjectCard:
     current_xp: int
     awarded_xp: int | None
     telegram_message_id: int | None
+    telegram_channel_id: int | None
 
 
 async def get_course_projects(
@@ -262,5 +263,8 @@ async def get_project_card(
             ),
             telegram_message_id=(
                 project.telegram_message_id
+            ),
+            telegram_channel_id=(
+                course.telegram_channel_id
             ),
         )

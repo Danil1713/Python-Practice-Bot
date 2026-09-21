@@ -100,10 +100,130 @@ async def create_scheduled_post(
             course_slug
         )
 
+        project_repository = ProjectRepository(
+            session
+        )
+        hint_repository = HintRepository(
+            session
+        )
+
         if course is None:
             raise ScheduleError(
                 "Курс не найден."
             )
+
+        if post_type == "regular":
+            if (
+                    project_id is not None
+                    or hint_id is not None
+            ):
+                raise ScheduleError(
+                    "Обычная публикация не должна "
+                    "быть связана с Project или Hint."
+                )
+
+
+        elif post_type == "project":
+            if project_id is None:
+                raise ScheduleError(
+                    "Для публикации Project "
+                    "нужно выбрать проект."
+                )
+
+            if hint_id is not None:
+                raise ScheduleError(
+                    "Публикация Project не может "
+                    "быть связана с Hint."
+                )
+
+            project = await project_repository.get_by_id(
+                project_id
+            )
+
+            if project is None:
+                raise ScheduleError(
+                    "Project не найден."
+                )
+
+            if project.course_id != course.id:
+                raise ScheduleError(
+                    "Project принадлежит "
+                    "другому курсу."
+                )
+
+            if project.published_at is not None:
+                raise ScheduleError(
+                    "Этот Project уже опубликован."
+                )
+
+            duplicate = (
+                await post_repository
+                .has_active_for_project(
+                    project.id
+                )
+            )
+
+            if duplicate:
+                raise ScheduleError(
+                    "Для этого Project уже есть "
+                    "активная публикация."
+                )
+
+
+        elif post_type == "hint":
+            if hint_id is None:
+                raise ScheduleError(
+                    "Для публикации Hint "
+                    "нужно выбрать подсказку."
+                )
+
+            if project_id is not None:
+                raise ScheduleError(
+                    "Публикация Hint не должна "
+                    "содержать project_id."
+                )
+
+            hint = await hint_repository.get_by_id(
+                hint_id
+            )
+
+            if hint is None:
+                raise ScheduleError(
+                    "Hint не найден."
+                )
+
+            project = await project_repository.get_by_id(
+                hint.project_id
+            )
+
+            if project is None:
+                raise ScheduleError(
+                    "Project подсказки не найден."
+                )
+
+            if project.course_id != course.id:
+                raise ScheduleError(
+                    "Hint принадлежит "
+                    "другому курсу."
+                )
+
+            if hint.published_at is not None:
+                raise ScheduleError(
+                    "Этот Hint уже опубликован."
+                )
+
+            duplicate = (
+                await post_repository
+                .has_active_for_hint(
+                    hint.id
+                )
+            )
+
+            if duplicate:
+                raise ScheduleError(
+                    "Для этого Hint уже есть "
+                    "активная публикация."
+                )
 
         post = await post_repository.create(
             course_id=course.id,
@@ -153,6 +273,11 @@ async def reschedule_post(
             raise ScheduledPostNotEditable(
                 "Эту публикацию нельзя перенести."
             )
+
+        await ensure_no_active_duplicate(
+            repository,
+            post,
+        )
 
         await repository.reschedule(
             post,
@@ -210,6 +335,11 @@ async def publish_post_now(
                 "Эту публикацию нельзя "
                 "опубликовать сейчас."
             )
+
+        await ensure_no_active_duplicate(
+            repository,
+            post,
+        )
 
         if post.status == "failed":
             await repository.reschedule(
@@ -355,3 +485,43 @@ async def get_project_hints_for_schedule(
             )
             for hint in hints
         ]
+
+async def ensure_no_active_duplicate(
+    repository: ScheduledPostRepository,
+    post,
+) -> None:
+    if (
+        post.post_type == "project"
+        and post.project_id is not None
+    ):
+        duplicate = (
+            await repository
+            .has_active_for_project(
+                project_id=post.project_id,
+                exclude_post_id=post.id,
+            )
+        )
+
+        if duplicate:
+            raise ScheduleError(
+                "Для этого Project уже есть "
+                "другая активная публикация."
+            )
+
+    elif (
+        post.post_type == "hint"
+        and post.hint_id is not None
+    ):
+        duplicate = (
+            await repository
+            .has_active_for_hint(
+                hint_id=post.hint_id,
+                exclude_post_id=post.id,
+            )
+        )
+
+        if duplicate:
+            raise ScheduleError(
+                "Для этого Hint уже есть "
+                "другая активная публикация."
+            )

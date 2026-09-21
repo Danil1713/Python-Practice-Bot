@@ -12,6 +12,9 @@ from app.database.repositories.project_repository import (
 from app.database.session import (
     async_session_factory,
 )
+from app.services.telegram_link_service import (
+    build_channel_message_url,
+)
 
 
 @dataclass(frozen=True)
@@ -19,6 +22,7 @@ class HintListItem:
     id: int
     number: int
     is_published: bool
+    telegram_url: str | None
 
 
 @dataclass(frozen=True)
@@ -72,8 +76,20 @@ async def get_project_hints(
                     id=hint.id,
                     number=hint.number,
                     is_published=(
-                        hint.published_at
-                        is not None
+                            hint.published_at
+                            is not None
+                    ),
+                    telegram_url=(
+                        build_channel_message_url(
+                            channel_id=course.telegram_channel_id,
+                            message_id=hint.telegram_message_id,
+                        )
+                        if (
+                                hint.published_at is not None
+                                and hint.telegram_message_id is not None
+                                and course.telegram_channel_id is not None
+                        )
+                        else None
                     ),
                 )
                 for hint in hints

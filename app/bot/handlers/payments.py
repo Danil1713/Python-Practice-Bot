@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.types import (
@@ -14,12 +16,13 @@ from app.services.payment_service import (
     PaymentError,
     create_payment,
     get_payment_checkout_view,
-    process_telegram_stars_payment, cancel_payment,
+    process_telegram_stars_payment, cancel_payment, approve_pre_checkout,
 )
 from app.services.pricing_service import (
     get_subscription_plan,
 )
 
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -120,52 +123,18 @@ async def pre_checkout_handler(
         payment_id
     )
 
-    if payment is None:
-        await query.answer(
-            ok=False,
-            error_message=(
-                "Платёж не найден."
-            ),
+    try:
+        await approve_pre_checkout(
+            payment_id=payment_id,
+            telegram_user_id=query.from_user.id,
+            currency=query.currency,
+            total_amount=query.total_amount,
         )
-        return
 
-    if payment.status != "pending":
+    except PaymentError as error:
         await query.answer(
             ok=False,
-            error_message=(
-                "Этот платёж уже обработан."
-            ),
-        )
-        return
-
-    if (
-        payment.telegram_user_id
-        != query.from_user.id
-    ):
-        await query.answer(
-            ok=False,
-            error_message=(
-                "Этот платёж принадлежит "
-                "другому пользователю."
-            ),
-        )
-        return
-
-    if query.currency != payment.currency:
-        await query.answer(
-            ok=False,
-            error_message=(
-                "Некорректная валюта."
-            ),
-        )
-        return
-
-    if query.total_amount != payment.amount:
-        await query.answer(
-            ok=False,
-            error_message=(
-                "Некорректная сумма."
-            ),
+            error_message=str(error),
         )
         return
 
@@ -216,12 +185,29 @@ async def successful_payment_handler(
             )
         )
 
-    except PaymentError:
+
+    except PaymentError as error:
+        logger.error(
+            "Could not finalize Stars payment "
+            "payment_id=%s "
+            "telegram_user_id=%s "
+            "charge_id=%s "
+            "error=%s",
+            payment_id,
+            message.from_user.id,
+            (
+                successful_payment
+                .telegram_payment_charge_id
+            ),
+            error,
+        )
+
         await message.answer(
             "⚠️ Оплата получена, но возникла "
             "ошибка при активации подписки.\n\n"
             "Обратись к администратору."
         )
+
         return
 
     if not processed:

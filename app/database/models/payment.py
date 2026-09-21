@@ -6,7 +6,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    func,
+    func, Text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -83,5 +83,15 @@ class Payment(Base):
 
     paid_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
+        nullable=True,
+    )
+
+    pre_checkout_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    error_message: Mapped[str | None] = mapped_column(
+        Text,
         nullable=True,
     )

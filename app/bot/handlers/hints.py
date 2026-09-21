@@ -1,5 +1,9 @@
 from aiogram import F, Router
-from aiogram.types import CallbackQuery
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 
 from app.bot.keyboards.hints import (
     get_hints_keyboard,
@@ -18,6 +22,9 @@ from app.database.repositories.hint_repository import (
 )
 from app.database.session import (
     async_session_factory,
+)
+from app.services.telegram_link_service import (
+    build_channel_message_url,
 )
 
 
@@ -105,7 +112,9 @@ async def hint_open_handler(
     )
 
     async with async_session_factory() as session:
-        repository = HintRepository(session)
+        repository = HintRepository(
+            session
+        )
 
         hint = await repository.get_by_id(
             hint_id
@@ -126,16 +135,7 @@ async def hint_open_handler(
         )
         return
 
-    if hint.telegram_message_id is None:
-        await callback.answer(
-            "Пост подсказки пока не "
-            "привязан к Telegram.",
-            show_alert=True,
-        )
-        return
-
     await callback.answer(
-        "Переход к публикации подключим "
-        "на этапе автопубликации.",
+        "Не удалось открыть публикацию.",
         show_alert=True,
     )

@@ -23,6 +23,11 @@ def get_bot_token() -> str:
 def get_database_url() -> str:
     return get_required_env("DATABASE_URL")
 
+def get_redis_url() -> str:
+    return get_required_env(
+        "REDIS_URL"
+    )
+
 def get_openai_api_key() -> str:
     return get_required_env("OPENAI_API_KEY")
 
@@ -50,3 +55,77 @@ def get_admin_username() -> str:
     return get_required_env(
         "ADMIN_USERNAME"
     ).lstrip("@")
+
+def get_ai_model() -> str:
+    return os.getenv(
+        "AI_MODEL",
+        "gemini-3.6-flash",
+    )
+
+
+def get_ai_timeout_seconds() -> float:
+    value = float(
+        os.getenv(
+            "AI_TIMEOUT_SECONDS",
+            "45",
+        )
+    )
+
+    if value <= 0:
+        raise RuntimeError(
+            "AI_TIMEOUT_SECONDS "
+            "должен быть больше 0"
+        )
+
+    return value
+
+
+def get_ai_max_attempts() -> int:
+    value = int(
+        os.getenv(
+            "AI_MAX_ATTEMPTS",
+            "3",
+        )
+    )
+
+    if value <= 0:
+        raise RuntimeError(
+            "AI_MAX_ATTEMPTS "
+            "должен быть больше 0"
+        )
+
+    return value
+
+
+def get_ai_retry_base_delay_seconds() -> float:
+    value = float(
+        os.getenv(
+            "AI_RETRY_BASE_DELAY_SECONDS",
+            "1",
+        )
+    )
+
+    if value < 0:
+        raise RuntimeError(
+            "AI_RETRY_BASE_DELAY_SECONDS "
+            "не может быть меньше 0"
+        )
+
+    return value
+
+
+def get_ai_max_concurrency() -> int:
+    value = int(
+        os.getenv(
+            "AI_MAX_CONCURRENCY",
+            "2",
+        )
+    )
+
+    if value <= 0:
+        raise RuntimeError(
+            "AI_MAX_CONCURRENCY "
+            "должен быть больше 0"
+        )
+
+    return value

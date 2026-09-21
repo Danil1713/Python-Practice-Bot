@@ -29,8 +29,6 @@ from app.database.repositories.course_repository import (
 async def check_attempt(
     attempt_id: int,
     bot: Bot,
-    chat_id: int,
-    status_message_id: int,
 ) -> None:
     async with async_session_factory() as session:
         attempt_repository = AttemptRepository(
@@ -40,14 +38,21 @@ async def check_attempt(
             session
         )
 
+        claimed = await attempt_repository.claim_pending(
+            attempt_id
+        )
+
+        if not claimed:
+            await session.rollback()
+            return
+
+        await session.commit()
+
         attempt = await attempt_repository.get_by_id(
             attempt_id
         )
 
         if attempt is None:
-            return
-
-        if attempt.status != "pending":
             return
 
         project = await project_repository.get_by_id(
@@ -127,23 +132,26 @@ async def check_attempt(
                 if error_course is None:
                     return
 
-                await bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=status_message_id,
-                    text=(
-                        f"⚠️ <b>Не удалось проверить "
-                        f"Project {error_project.number}.</b>\n\n"
-                        f"{error_project.title}\n\n"
-                        "Статус: ⚠️ Ошибка проверки\n\n"
-                        "Решение сохранено. "
-                        "Попробуй повторить проверку позже."
-                    ),
-
-                    reply_markup=get_project_card_keyboard(
-                        project_id=error_project.id,
-                        course_slug=error_course.slug,
-                    ),
-                )
+                if (
+                        error_attempt.status_chat_id is not None
+                        and error_attempt.status_message_id is not None
+                ):
+                    await bot.edit_message_text(
+                        chat_id=error_attempt.status_chat_id,
+                        message_id=error_attempt.status_message_id,
+                        text=(
+                            f"⚠️ <b>Не удалось проверить "
+                            f"Project {error_project.number}.</b>\n\n"
+                            f"{error_project.title}\n\n"
+                            "Статус: ⚠️ Ошибка проверки\n\n"
+                            "Решение сохранено. "
+                            "Попробуй повторить проверку позже."
+                        ),
+                        reply_markup=get_project_card_keyboard(
+                            project_id=error_project.id,
+                            course_slug=error_course.slug,
+                        ),
+                    )
 
             return
 
@@ -242,10 +250,14 @@ async def check_attempt(
                 project.course_id
             )
 
-            if course is not None:
+            if (
+                    course is not None
+                    and attempt.status_chat_id is not None
+                    and attempt.status_message_id is not None
+            ):
                 await bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=status_message_id,
+                    chat_id=attempt.status_chat_id,
+                    message_id=attempt.status_message_id,
                     text=result_text,
                     reply_markup=get_project_card_keyboard(
                         project_id=project.id,

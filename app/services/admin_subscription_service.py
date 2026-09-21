@@ -20,6 +20,10 @@ from app.database.repositories.user_repository import (
 from app.database.session import (
     async_session_factory,
 )
+from app.services.subscription_service import (
+    activate_or_extend_subscription_in_session,
+    SubscriptionAuditContext,
+)
 
 
 class AdminSubscriptionError(Exception):
@@ -78,15 +82,13 @@ async def activate_or_extend_subscription(
     user_id: int,
     course_id: int,
     days: int,
+    actor_telegram_id: int,
+    idempotency_key: str,
 ) -> SubscriptionResult:
     if days <= 0:
         raise AdminSubscriptionError(
             "Количество дней должно быть больше 0."
         )
-
-    now = datetime.now(
-        timezone.utc
-    )
 
     async with async_session_factory() as session:
         user_repository = UserRepository(
@@ -94,9 +96,6 @@ async def activate_or_extend_subscription(
         )
         course_repository = CourseRepository(
             session
-        )
-        subscription_repository = (
-            SubscriptionRepository(session)
         )
 
         user = await user_repository.get_by_id(
@@ -118,50 +117,23 @@ async def activate_or_extend_subscription(
             )
 
         subscription = (
-            await subscription_repository
-            .get_by_user_and_course(
+            await activate_or_extend_subscription_in_session(
+                session=session,
                 user_id=user.id,
                 course_id=course.id,
+                days=days,
+                audit=SubscriptionAuditContext(
+                    actor_telegram_id=(
+                        actor_telegram_id
+                    ),
+                    source="admin",
+                    reason="manual_admin_grant",
+                    idempotency_key=(
+                        idempotency_key
+                    ),
+                ),
             )
         )
-
-        if subscription is None:
-            starts_at = now
-            ends_at = (
-                now
-                + timedelta(days=days)
-            )
-
-            subscription = Subscription(
-                user_id=user.id,
-                course_id=course.id,
-                status="active",
-                starts_at=starts_at,
-                ends_at=ends_at,
-            )
-
-            await subscription_repository.save(
-                subscription
-            )
-
-        else:
-            if (
-                subscription.status == "active"
-                and subscription.ends_at > now
-            ):
-                subscription.ends_at = (
-                    subscription.ends_at
-                    + timedelta(days=days)
-                )
-
-            else:
-                subscription.starts_at = now
-                subscription.ends_at = (
-                    now
-                    + timedelta(days=days)
-                )
-
-            subscription.status = "active"
 
         await session.commit()
 
@@ -206,6 +178,8 @@ async def activate_or_extend_subscription_by_slug(
     user_id: int,
     course_slug: str,
     days: int,
+    actor_telegram_id: int,
+    idempotency_key: str,
 ) -> SubscriptionResult:
     async with async_session_factory() as session:
         course_repository = CourseRepository(
@@ -227,4 +201,6 @@ async def activate_or_extend_subscription_by_slug(
         user_id=user_id,
         course_id=course_id,
         days=days,
+        actor_telegram_id=actor_telegram_id,
+        idempotency_key=idempotency_key,
     )

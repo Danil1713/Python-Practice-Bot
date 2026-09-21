@@ -8,6 +8,7 @@ from app.database.models.attempt import Attempt
 from app.database.models.xp_transaction import XPTransaction
 from app.database.models.scheduled_post import ScheduledPost
 from app.database.models.payment import Payment
+from app.database.models.subscription_event import SubscriptionEvent
 
 
 __all__ = (
@@ -21,4 +22,5 @@ __all__ = (
     "XPTransaction",
     "ScheduledPost",
     "Payment",
+    "SubscriptionEvent",
 )

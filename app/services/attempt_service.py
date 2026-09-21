@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 from app.database.repositories.attempt_repository import (
     AttemptRepository,
@@ -24,6 +25,7 @@ from app.database.session import (
 )
 from app.exceptions.attempts import (
     AttemptAlreadyPending,
+    AttemptError,
     AttemptProjectLocked,
     AttemptProjectNotFound,
     AttemptUserNotFound,
@@ -112,6 +114,11 @@ async def create_attempt(
         if project.published_at is None:
             raise AttemptProjectLocked
 
+        await attempt_repository.lock_attempt_creation(
+            user_id=user.id,
+            project_id=project.id,
+        )
+
         active_attempt = (
             await attempt_repository
             .get_active_for_project(
@@ -157,16 +164,25 @@ async def create_attempt(
             )
         )
 
-        attempt = await attempt_repository.create(
-            user_id=user.id,
-            project_id=project.id,
-            attempt_number=attempt_number,
-            filename=filename,
-            source_code=source_code,
-            xp_snapshot=xp_snapshot,
-        )
+        try:
+            attempt = await attempt_repository.create(
+                user_id=user.id,
+                project_id=project.id,
+                attempt_number=attempt_number,
+                filename=filename,
+                source_code=source_code,
+                xp_snapshot=xp_snapshot,
+            )
 
-        await session.commit()
+            await session.commit()
+
+        except IntegrityError as error:
+            await session.rollback()
+
+            raise AttemptError(
+                "Не удалось сохранить попытку "
+                "из-за конфликта данных."
+            ) from error
 
         return CreatedAttempt(
             id=attempt.id,
@@ -295,3 +311,28 @@ async def get_attempt_detail(
             submitted_at=attempt.submitted_at,
             checked_at=attempt.checked_at,
         )
+
+async def save_attempt_status_message(
+    attempt_id: int,
+    chat_id: int,
+    message_id: int,
+) -> None:
+    async with async_session_factory() as session:
+        attempt_repository = AttemptRepository(
+            session
+        )
+
+        attempt = await attempt_repository.get_by_id(
+            attempt_id
+        )
+
+        if attempt is None:
+            return
+
+        await attempt_repository.set_status_message(
+            attempt=attempt,
+            chat_id=chat_id,
+            message_id=message_id,
+        )
+
+        await session.commit()

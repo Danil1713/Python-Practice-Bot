@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.scheduled_post import (
@@ -121,8 +121,14 @@ class ScheduledPostRepository:
         )
 
         for post in posts:
-            post.status = "scheduled"
+            post.status = "failed"
             post.publishing_started_at = None
+            post.error_message = (
+                "Не удалось однозначно определить "
+                "результат публикации после сбоя. "
+                "Проверь Telegram-канал перед "
+                "повторной публикацией."
+            )
 
         await self.session.flush()
 
@@ -200,3 +206,99 @@ class ScheduledPostRepository:
         return list(
             result.scalars().all()
         )
+
+    async def claim_scheduled(
+            self,
+            post_id: int,
+    ) -> bool:
+        started_at = datetime.now(
+            timezone.utc
+        )
+
+        statement = (
+            update(ScheduledPost)
+            .where(
+                ScheduledPost.id == post_id,
+                ScheduledPost.status == "scheduled",
+            )
+            .values(
+                status="publishing",
+                publishing_started_at=started_at,
+                error_message=None,
+            )
+            .returning(
+                ScheduledPost.id
+            )
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        claimed_id = result.scalar_one_or_none()
+
+        return claimed_id is not None
+
+    async def has_active_for_project(
+            self,
+            project_id: int,
+            exclude_post_id: int | None = None,
+    ) -> bool:
+        conditions = [
+            ScheduledPost.project_id == project_id,
+            ScheduledPost.status.in_(
+                [
+                    "scheduled",
+                    "publishing",
+                ]
+            ),
+        ]
+
+        if exclude_post_id is not None:
+            conditions.append(
+                ScheduledPost.id != exclude_post_id
+            )
+
+        statement = (
+            select(ScheduledPost.id)
+            .where(*conditions)
+            .limit(1)
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return result.scalar_one_or_none() is not None
+
+    async def has_active_for_hint(
+            self,
+            hint_id: int,
+            exclude_post_id: int | None = None,
+    ) -> bool:
+        conditions = [
+            ScheduledPost.hint_id == hint_id,
+            ScheduledPost.status.in_(
+                [
+                    "scheduled",
+                    "publishing",
+                ]
+            ),
+        ]
+
+        if exclude_post_id is not None:
+            conditions.append(
+                ScheduledPost.id != exclude_post_id
+            )
+
+        statement = (
+            select(ScheduledPost.id)
+            .where(*conditions)
+            .limit(1)
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return result.scalar_one_or_none() is not None

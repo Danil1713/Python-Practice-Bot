@@ -84,12 +84,13 @@ class PaymentRepository:
         await self.session.flush()
 
     async def mark_succeeded(
-        self,
-        payment: Payment,
-        paid_at: datetime,
+            self,
+            payment: Payment,
+            paid_at: datetime,
     ) -> None:
         payment.status = "succeeded"
         payment.paid_at = paid_at
+        payment.error_message = None
 
         await self.session.flush()
 
@@ -118,3 +119,52 @@ class PaymentRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def mark_pre_checkout(
+            self,
+            payment: Payment,
+            at: datetime,
+    ) -> None:
+        payment.pre_checkout_at = at
+        payment.error_message = None
+
+        await self.session.flush()
+
+    async def mark_review(
+            self,
+            payment: Payment,
+            error_message: str,
+    ) -> None:
+        payment.status = "review"
+        payment.error_message = error_message
+
+        await self.session.flush()
+
+    async def get_stale_pre_checkout(
+            self,
+            before: datetime,
+            limit: int = 100,
+    ) -> list[Payment]:
+        statement = (
+            select(Payment)
+            .where(
+                Payment.status == "pending",
+                Payment.pre_checkout_at.is_not(None),
+                Payment.pre_checkout_at <= before,
+            )
+            .order_by(
+                Payment.pre_checkout_at
+            )
+            .limit(limit)
+            .with_for_update(
+                skip_locked=True
+            )
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return list(
+            result.scalars().all()
+        )

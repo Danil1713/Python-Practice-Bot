@@ -8,6 +8,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    BigInteger,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -82,6 +83,21 @@ class Attempt(Base):
 
     error_message: Mapped[str | None] = mapped_column(
         Text,
+        nullable=True,
+    )
+
+    checking_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    status_chat_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
+    )
+
+    status_message_id: Mapped[int | None] = mapped_column(
+        Integer,
         nullable=True,
     )
 

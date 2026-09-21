@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -15,6 +16,7 @@ from app.database.session import (
 )
 from app.services.subscription_service import activate_or_extend_subscription_in_session
 
+logger = logging.getLogger(__name__)
 
 class PaymentError(Exception):
     pass
@@ -124,49 +126,6 @@ async def create_payment(
             status=payment.status,
         )
 
-async def process_successful_payment(
-    *,
-    external_payment_id: str,
-) -> bool:
-    now = datetime.now(
-        timezone.utc
-    )
-
-    async with async_session_factory() as session:
-        payment_repository = PaymentRepository(
-            session
-        )
-
-        payment = (
-            await payment_repository
-            .get_by_external_id(
-                external_payment_id
-            )
-        )
-
-        if payment is None:
-            raise PaymentNotFound(
-                "Платёж не найден."
-            )
-
-        if payment.status == "succeeded":
-            return False
-
-        await activate_or_extend_subscription_in_session(
-            session=session,
-            user_id=payment.user_id,
-            course_id=payment.course_id,
-            days=payment.subscription_days,
-        )
-
-        await payment_repository.mark_succeeded(
-            payment=payment,
-            paid_at=now,
-        )
-
-        await session.commit()
-
-        return True
 
 async def get_payment_checkout_view(
     payment_id: int,
@@ -205,7 +164,7 @@ async def get_payment_checkout_view(
             ),
         )
 
-async def process_telegram_stars_payment(
+async def _process_telegram_stars_payment(
     *,
     payment_id: int,
     telegram_user_id: int,
@@ -237,12 +196,11 @@ async def process_telegram_stars_payment(
                 "Платёж не найден."
             )
 
-        if payment.status == "succeeded":
-            return False
-
         if payment.status not in {
             "pending",
             "cancelled",
+            "review",
+            "succeeded",
         }:
             raise PaymentError(
                 "Платёж уже нельзя обработать."
@@ -257,7 +215,10 @@ async def process_telegram_stars_payment(
                 "Пользователь не найден."
             )
 
-        if user.telegram_id != telegram_user_id:
+        if (
+            user.telegram_id
+            != telegram_user_id
+        ):
             raise PaymentError(
                 "Платёж принадлежит "
                 "другому пользователю."
@@ -273,16 +234,51 @@ async def process_telegram_stars_payment(
                 "Сумма платежа не совпадает."
             )
 
-        await payment_repository.set_external_id(
-            payment,
-            telegram_payment_charge_id,
+        existing = (
+            await payment_repository
+            .get_by_external_id(
+                telegram_payment_charge_id
+            )
         )
 
-        await activate_or_extend_subscription_in_session(
-            session=session,
-            user_id=payment.user_id,
-            course_id=payment.course_id,
-            days=payment.subscription_days,
+        if (
+            existing is not None
+            and existing.id != payment.id
+        ):
+            raise PaymentError(
+                "Telegram charge уже связан "
+                "с другим платежом."
+            )
+
+        if (
+            payment.external_payment_id
+            is not None
+            and payment.external_payment_id
+            != telegram_payment_charge_id
+        ):
+            raise PaymentError(
+                "Идентификатор платежа "
+                "не совпадает."
+            )
+
+        # Повторная доставка того же
+        # successful_payment безопасна.
+        if payment.status == "succeeded":
+            return False
+
+        if payment.external_payment_id is None:
+            await payment_repository.set_external_id(
+                payment,
+                telegram_payment_charge_id,
+            )
+
+        await (
+            activate_or_extend_subscription_in_session(
+                session=session,
+                user_id=payment.user_id,
+                course_id=payment.course_id,
+                days=payment.subscription_days,
+            )
         )
 
         await payment_repository.mark_succeeded(
@@ -293,6 +289,74 @@ async def process_telegram_stars_payment(
         await session.commit()
 
         return True
+
+async def process_telegram_stars_payment(
+    *,
+    payment_id: int,
+    telegram_user_id: int,
+    telegram_payment_charge_id: str,
+    currency: str,
+    total_amount: int,
+) -> bool:
+    try:
+        return await (
+            _process_telegram_stars_payment(
+                payment_id=payment_id,
+                telegram_user_id=(
+                    telegram_user_id
+                ),
+                telegram_payment_charge_id=(
+                    telegram_payment_charge_id
+                ),
+                currency=currency,
+                total_amount=total_amount,
+            )
+        )
+
+    except PaymentError:
+        logger.warning(
+            "Telegram Stars payment rejected "
+            "payment_id=%s "
+            "telegram_user_id=%s "
+            "charge_id=%s",
+            payment_id,
+            telegram_user_id,
+            telegram_payment_charge_id,
+        )
+
+        raise
+
+    except Exception as error:
+        logger.exception(
+            "Telegram Stars processing failed "
+            "payment_id=%s "
+            "telegram_user_id=%s "
+            "charge_id=%s",
+            payment_id,
+            telegram_user_id,
+            telegram_payment_charge_id,
+        )
+
+        try:
+            await mark_payment_for_review(
+                payment_id=payment_id,
+                telegram_payment_charge_id=(
+                    telegram_payment_charge_id
+                ),
+                error_message=str(error),
+            )
+
+        except Exception:
+            logger.exception(
+                "Failed to mark payment "
+                "for review "
+                "payment_id=%s",
+                payment_id,
+            )
+
+        raise PaymentError(
+            "Не удалось активировать подписку."
+        ) from error
 
 
 async def cancel_payment(
@@ -338,6 +402,166 @@ async def cancel_payment(
 
         await payment_repository.mark_cancelled(
             payment
+        )
+
+        await session.commit()
+
+        return True
+
+async def approve_pre_checkout(
+    *,
+    payment_id: int,
+    telegram_user_id: int,
+    currency: str,
+    total_amount: int,
+) -> None:
+    now = datetime.now(
+        timezone.utc
+    )
+
+    async with async_session_factory() as session:
+        payment_repository = PaymentRepository(
+            session
+        )
+        user_repository = UserRepository(
+            session
+        )
+
+        payment = (
+            await payment_repository
+            .get_by_id_for_update(
+                payment_id
+            )
+        )
+
+        if payment is None:
+            raise PaymentNotFound(
+                "Платёж не найден."
+            )
+
+        if payment.status != "pending":
+            raise PaymentError(
+                "Этот платёж уже обработан."
+            )
+
+        user = await user_repository.get_by_id(
+            payment.user_id
+        )
+
+        if (
+            user is None
+            or user.telegram_id != telegram_user_id
+        ):
+            raise PaymentError(
+                "Этот платёж принадлежит "
+                "другому пользователю."
+            )
+
+        if payment.currency != currency:
+            raise PaymentError(
+                "Некорректная валюта."
+            )
+
+        if payment.amount != total_amount:
+            raise PaymentError(
+                "Некорректная сумма."
+            )
+
+        await payment_repository.mark_pre_checkout(
+            payment=payment,
+            at=now,
+        )
+
+        await session.commit()
+
+async def mark_payment_for_review(
+    *,
+    payment_id: int,
+    telegram_payment_charge_id: str,
+    error_message: str,
+) -> None:
+    async with async_session_factory() as session:
+        repository = PaymentRepository(
+            session
+        )
+
+        payment = await repository.get_by_id_for_update(
+            payment_id
+        )
+
+        if payment is None:
+            return
+
+        if payment.status == "succeeded":
+            return
+
+        if payment.external_payment_id is None:
+            existing = await repository.get_by_external_id(
+                telegram_payment_charge_id
+            )
+
+            if (
+                existing is None
+                or existing.id == payment.id
+            ):
+                await repository.set_external_id(
+                    payment,
+                    telegram_payment_charge_id,
+                )
+
+        await repository.mark_review(
+            payment,
+            error_message,
+        )
+
+        await session.commit()
+
+async def retry_payment_activation(
+    *,
+    payment_id: int,
+) -> bool:
+    now = datetime.now(
+        timezone.utc
+    )
+
+    async with async_session_factory() as session:
+        repository = PaymentRepository(
+            session
+        )
+
+        payment = await repository.get_by_id_for_update(
+            payment_id
+        )
+
+        if payment is None:
+            raise PaymentNotFound(
+                "Платёж не найден."
+            )
+
+        if payment.status == "succeeded":
+            return False
+
+        if payment.status != "review":
+            raise PaymentError(
+                "Платёж не требует сверки."
+            )
+
+        if payment.external_payment_id is None:
+            raise PaymentError(
+                "Нет подтверждённого "
+                "Telegram charge ID."
+            )
+
+        await activate_or_extend_subscription_in_session(
+            session=session,
+            user_id=payment.user_id,
+            course_id=payment.course_id,
+            days=payment.subscription_days,
+        )
+
+        await repository.mark_succeeded(
+            payment=payment,
+            paid_at=now,
         )
 
         await session.commit()

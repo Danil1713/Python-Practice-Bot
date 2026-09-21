@@ -1,4 +1,5 @@
 from html import escape
+from uuid import uuid4
 
 from aiogram import F, Router, Bot
 from aiogram.types import CallbackQuery, Message
@@ -629,8 +630,6 @@ async def admin_add_project_select_handler(
 
     await callback.answer()
 
-    await callback.answer()
-
 @router.callback_query(
     AdminScheduleStates.choosing_post_type,
     F.data.startswith(
@@ -690,7 +689,8 @@ async def admin_add_hint_select_handler(
     hint_id = int(parts[3])
 
     await state.update_data(
-        hint_id=hint_id
+        hint_id=hint_id,
+        project_id=None,
     )
 
     await state.set_state(
@@ -787,10 +787,14 @@ async def admin_add_datetime_handler(
         return
 
     await state.update_data(
-        scheduled_at=scheduled_at
+        scheduled_at=scheduled_at.isoformat()
     )
 
     data = await state.get_data()
+
+    await state.update_data(
+        subscription_idempotency_key=uuid4().hex
+    )
 
     await state.set_state(
         AdminScheduleStates.confirming
@@ -822,12 +826,16 @@ async def admin_add_confirm_handler(
 
     data = await state.get_data()
 
+    scheduled_at = datetime.fromisoformat(
+        data["scheduled_at"]
+    )
+
     try:
         post = await create_scheduled_post(
             course_slug=data["course_slug"],
             post_type=data["post_type"],
             content=data["content"],
-            scheduled_at=data["scheduled_at"],
+            scheduled_at=scheduled_at,
             project_id=data.get("project_id"),
             hint_id=data.get("hint_id"),
         )
@@ -1087,8 +1095,7 @@ async def admin_subscription_days_handler(
     )
 
 @router.callback_query(
-    AdminScheduleStates
-    .confirming_subscription,
+    AdminScheduleStates.confirming_subscription,
     F.data == "admin:sub:confirm",
 )
 async def admin_subscription_confirm_handler(
@@ -1099,6 +1106,18 @@ async def admin_subscription_confirm_handler(
         return
 
     data = await state.get_data()
+
+    idempotency_key = data.get(
+        "subscription_idempotency_key"
+    )
+
+    if not idempotency_key:
+        await callback.answer(
+            "Операция устарела. "
+            "Начните выдачу подписки заново.",
+            show_alert=True,
+        )
+        return
 
     result = (
         await activate_or_extend_subscription_by_slug(
@@ -1111,10 +1130,16 @@ async def admin_subscription_confirm_handler(
             days=data[
                 "subscription_days"
             ],
+            actor_telegram_id=(
+                callback.from_user.id
+            ),
+            idempotency_key=idempotency_key,
         )
     )
 
-    course_slug = data["subscription_course_slug"]
+    course_slug = data[
+        "subscription_course_slug"
+    ]
 
     await state.clear()
 
@@ -1132,7 +1157,9 @@ async def admin_subscription_confirm_handler(
     await callback.message.edit_text(
         text=(
             "✅ <b>Подписка активирована.</b>\n\n"
-            f"Курс: <b>{escape(course.title)}</b>\n"
+            f"Курс: <b>"
+            f"{escape(course.title)}"
+            f"</b>\n"
             f"До: <b>"
             f"{format_admin_datetime(result.ends_at)}"
             f"</b>\n\n"

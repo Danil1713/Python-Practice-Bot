@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.subscription import (
@@ -84,4 +84,20 @@ class SubscriptionRepository:
 
         return list(
             result.scalars().all()
+        )
+
+    async def lock_subscription(
+            self,
+            user_id: int,
+            course_id: int,
+    ) -> None:
+        statement = select(
+            func.pg_advisory_xact_lock(
+                user_id,
+                course_id,
+            )
+        )
+
+        await self.session.execute(
+            statement
         )

@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from aiogram import Bot
@@ -18,6 +19,8 @@ from app.database.session import (
     async_session_factory,
 )
 
+logger = logging.getLogger(__name__)
+
 
 async def publish_scheduled_post(
     post_id: int,
@@ -31,14 +34,21 @@ async def publish_scheduled_post(
             session
         )
 
+        claimed = await post_repository.claim_scheduled(
+            post_id
+        )
+
+        if not claimed:
+            await session.rollback()
+            return
+
+        await session.commit()
+
         post = await post_repository.get_by_id(
             post_id
         )
 
         if post is None:
-            return
-
-        if post.status != "scheduled":
             return
 
         course = await course_repository.get_by_id(
@@ -61,12 +71,6 @@ async def publish_scheduled_post(
             await session.commit()
             return
 
-        await post_repository.mark_publishing(
-            post
-        )
-
-        await session.commit()
-
         channel_id = course.telegram_channel_id
         content = post.content
 
@@ -77,6 +81,13 @@ async def publish_scheduled_post(
         )
 
     except Exception as error:
+        logger.exception(
+            "Failed to publish scheduled post "
+            "post_id=%s channel_id=%s",
+            post_id,
+            channel_id,
+        )
+
         async with async_session_factory() as session:
             repository = ScheduledPostRepository(
                 session

@@ -7,6 +7,9 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    CheckConstraint,
+    Index,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,6 +18,50 @@ from app.database.base import Base
 
 class ScheduledPost(Base):
     __tablename__ = "scheduled_posts"
+
+    __table_args__ = (
+        CheckConstraint(
+            (
+                "("
+                "post_type = 'regular' "
+                "AND project_id IS NULL "
+                "AND hint_id IS NULL"
+                ") OR ("
+                "post_type = 'project' "
+                "AND project_id IS NOT NULL "
+                "AND hint_id IS NULL"
+                ") OR ("
+                "post_type = 'hint' "
+                "AND project_id IS NULL "
+                "AND hint_id IS NOT NULL"
+                ")"
+            ),
+            name=(
+                "ck_scheduled_posts_"
+                "entity_by_type"
+            ),
+        ),
+        Index(
+            "uq_scheduled_posts_active_project",
+            "project_id",
+            unique=True,
+            postgresql_where=text(
+                "project_id IS NOT NULL "
+                "AND status IN "
+                "('scheduled', 'publishing')"
+            ),
+        ),
+        Index(
+            "uq_scheduled_posts_active_hint",
+            "hint_id",
+            unique=True,
+            postgresql_where=text(
+                "hint_id IS NOT NULL "
+                "AND status IN "
+                "('scheduled', 'publishing')"
+            ),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

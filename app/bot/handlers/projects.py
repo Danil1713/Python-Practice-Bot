@@ -1,5 +1,9 @@
 from aiogram import F, Router
-from aiogram.types import CallbackQuery
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 
 from app.bot.keyboards.projects import (
     get_project_card_keyboard,
@@ -11,6 +15,9 @@ from app.services.project_service import (
 )
 from app.services.subscription_service import (
     has_active_subscription,
+)
+from app.services.telegram_link_service import (
+    build_channel_message_url,
 )
 
 
@@ -88,6 +95,23 @@ async def project_card_handler(
         )
         return
 
+    active = await has_active_subscription(
+        telegram_user_id=callback.from_user.id,
+        course_slug=project.course_slug,
+    )
+
+    task_url = None
+
+    if (
+            active
+            and project.telegram_channel_id is not None
+            and project.telegram_message_id is not None
+    ):
+        task_url = build_channel_message_url(
+            channel_id=project.telegram_channel_id,
+            message_id=project.telegram_message_id,
+        )
+
     if project.status == "completed":
         status_text = "✅ Выполнен"
 
@@ -124,6 +148,7 @@ async def project_card_handler(
         reply_markup=get_project_card_keyboard(
             project_id=project.id,
             course_slug=project.course_slug,
+            task_url=task_url,
         ),
     )
 
@@ -173,8 +198,45 @@ async def project_task_handler(
         )
         return
 
-    await callback.answer(
-        "Ссылку на пост подключим вместе "
-        "с системой публикаций.",
-        show_alert=True,
+    if project.telegram_channel_id is None:
+        await callback.answer(
+            "Telegram-канал курса "
+            "не настроен.",
+            show_alert=True,
+        )
+        return
+
+    post_url = build_channel_message_url(
+        channel_id=project.telegram_channel_id,
+        message_id=project.telegram_message_id,
     )
+
+    if post_url is None:
+        await callback.answer(
+            "Не удалось сформировать "
+            "ссылку на публикацию.",
+            show_alert=True,
+        )
+        return
+
+    await callback.message.answer(
+        text=(
+            f"📖 <b>Project "
+            f"{project.number} — "
+            f"{project.title}</b>\n\n"
+            "Открой опубликованное задание "
+            "по кнопке ниже."
+        ),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="📖 Открыть задание",
+                        url=post_url,
+                    )
+                ]
+            ]
+        ),
+    )
+
+    await callback.answer()

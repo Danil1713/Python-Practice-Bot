@@ -62,16 +62,25 @@ def get_projects_keyboard(
 def get_project_card_keyboard(
     project_id: int,
     course_slug: str,
+    task_url: str | None = None,
 ) -> InlineKeyboardMarkup:
+    if task_url is not None:
+        task_button = InlineKeyboardButton(
+            text="📖 Открыть задание",
+            url=task_url,
+        )
+    else:
+        task_button = InlineKeyboardButton(
+            text="📖 Открыть задание",
+            callback_data=(
+                f"project:task:{project_id}"
+            ),
+        )
+
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(
-                    text="📖 Открыть задание",
-                    callback_data=(
-                        f"project:task:{project_id}"
-                    ),
-                )
+                task_button
             ],
             [
                 InlineKeyboardButton(
