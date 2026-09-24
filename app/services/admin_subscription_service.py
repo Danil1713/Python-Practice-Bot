@@ -1,18 +1,10 @@
 from dataclasses import dataclass
 from datetime import (
     datetime,
-    timedelta,
-    timezone,
 )
 
-from app.database.models.subscription import (
-    Subscription,
-)
 from app.database.repositories.course_repository import (
     CourseRepository,
-)
-from app.database.repositories.subscription_repository import (
-    SubscriptionRepository,
 )
 from app.database.repositories.user_repository import (
     UserRepository,
@@ -21,8 +13,8 @@ from app.database.session import (
     async_session_factory,
 )
 from app.services.subscription_service import (
-    activate_or_extend_subscription_in_session,
     SubscriptionAuditContext,
+    activate_or_extend_subscription_in_session,
 )
 
 
@@ -144,34 +136,6 @@ async def activate_or_extend_subscription(
             ends_at=subscription.ends_at,
             status=subscription.status,
         )
-
-
-async def deactivate_subscription(
-    *,
-    user_id: int,
-    course_id: int,
-) -> None:
-    async with async_session_factory() as session:
-        repository = SubscriptionRepository(
-            session
-        )
-
-        subscription = (
-            await repository
-            .get_by_user_and_course(
-                user_id=user_id,
-                course_id=course_id,
-            )
-        )
-
-        if subscription is None:
-            raise AdminSubscriptionError(
-                "Подписка не найдена."
-            )
-
-        subscription.status = "cancelled"
-
-        await session.commit()
 
 async def activate_or_extend_subscription_by_slug(
     *,

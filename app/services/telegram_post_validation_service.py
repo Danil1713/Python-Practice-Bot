@@ -1,6 +1,5 @@
 from html.parser import HTMLParser
 
-
 TELEGRAM_MESSAGE_TEXT_LIMIT = 4096
 
 _ALLOWED_TAGS = {

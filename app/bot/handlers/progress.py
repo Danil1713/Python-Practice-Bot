@@ -1,15 +1,16 @@
-from aiogram import F, Router
-from aiogram.types import CallbackQuery
 from html import escape
 
+from aiogram import F, Router
+from aiogram.types import CallbackQuery
+
+from app.bot.callbacks import (
+    parse_callback_str,
+)
 from app.bot.keyboards.progress import (
     get_progress_keyboard,
 )
 from app.services.progress_service import (
     get_course_progress,
-)
-from app.bot.callbacks import (
-    parse_callback_str,
 )
 
 router = Router()

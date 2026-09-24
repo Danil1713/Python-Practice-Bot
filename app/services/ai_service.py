@@ -18,7 +18,6 @@ from app.config import (
     get_gemini_api_key,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

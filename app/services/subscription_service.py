@@ -1,12 +1,14 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Subscription
 from app.database.repositories.course_repository import (
     CourseRepository,
+)
+from app.database.repositories.subscription_event_repository import (
+    SubscriptionEventRepository,
 )
 from app.database.repositories.subscription_repository import (
     SubscriptionRepository,
@@ -17,9 +19,7 @@ from app.database.repositories.user_repository import (
 from app.database.session import (
     async_session_factory,
 )
-from app.database.repositories.subscription_event_repository import (
-    SubscriptionEventRepository,
-)
+
 
 @dataclass(frozen=True)
 class SubscriptionView:

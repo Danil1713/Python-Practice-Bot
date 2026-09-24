@@ -1,12 +1,19 @@
-from aiogram import F, Router
-from aiogram.types import CallbackQuery
 from html import escape
 
+from aiogram import F, Router
+from aiogram.types import CallbackQuery
+
+from app.bot.callbacks import (
+    parse_callback_str,
+)
 from app.bot.keyboards.courses import (
     get_courses_keyboard,
 )
 from app.bot.keyboards.main_menu import (
     get_main_menu_keyboard,
+)
+from app.services.admin_service import (
+    is_admin,
 )
 from app.services.course_service import (
     get_active_courses,
@@ -15,13 +22,6 @@ from app.services.course_service import (
 from app.services.subscription_service import (
     has_active_subscription,
 )
-from app.services.admin_service import (
-    is_admin,
-)
-from app.bot.callbacks import (
-    parse_callback_str,
-)
-
 
 router = Router()
 

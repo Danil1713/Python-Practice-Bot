@@ -1,13 +1,21 @@
-from aiogram import F, Router
 from html import escape
+
+from aiogram import F, Router
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
 
+from app.bot.callbacks import (
+    parse_callback_int,
+    parse_callback_str,
+)
 from app.bot.keyboards.projects import (
     get_projects_keyboard,
+)
+from app.bot.views.project_card import (
+    render_project_card,
 )
 from app.services.project_service import (
     get_course_projects,
@@ -18,13 +26,6 @@ from app.services.subscription_service import (
 )
 from app.services.telegram_link_service import (
     build_channel_message_url,
-)
-from app.bot.callbacks import (
-    parse_callback_int,
-    parse_callback_str,
-)
-from app.bot.views.project_card import (
-    render_project_card,
 )
 
 router = Router()

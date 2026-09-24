@@ -1,7 +1,8 @@
+from datetime import UTC, datetime
+
 from app.database.models.user import User
 from app.database.repositories.user_repository import UserRepository
 from app.database.session import async_session_factory
-from datetime import UTC, datetime
 
 AI_REVIEW_CONSENT_VERSION = "v1"
 

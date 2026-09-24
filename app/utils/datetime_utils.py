@@ -4,7 +4,6 @@ from zoneinfo import (
     ZoneInfoNotFoundError,
 )
 
-
 DATETIME_FORMAT = "%d.%m.%Y %H:%M"
 
 

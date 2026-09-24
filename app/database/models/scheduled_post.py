@@ -2,13 +2,13 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     String,
     Text,
     func,
-    CheckConstraint,
-    Index,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column

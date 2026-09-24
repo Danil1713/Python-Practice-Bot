@@ -2,6 +2,7 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
+
 from app.bot.callbacks import (
     build_callback_data,
 )

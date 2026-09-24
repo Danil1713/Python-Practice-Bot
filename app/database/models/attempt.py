@@ -1,6 +1,8 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -8,8 +10,6 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
-    BigInteger,
-    CheckConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 

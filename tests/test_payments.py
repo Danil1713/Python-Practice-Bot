@@ -20,7 +20,6 @@ from app.services.payment_service import (
     process_telegram_stars_payment,
 )
 
-
 DATABASE_URL = os.environ[
     "DATABASE_URL"
 ]

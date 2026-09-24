@@ -1,15 +1,16 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.config import get_app_timezone, get_admin_username
-
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
+
 from app.bot.callbacks import (
     build_callback_data,
 )
+from app.config import get_admin_username, get_app_timezone
+
 
 def get_subscription_keyboard(
     course_slug: str,

@@ -12,7 +12,6 @@ from app.services.user_service import (
     register_or_update_user,
 )
 
-
 router = Router()
 
 

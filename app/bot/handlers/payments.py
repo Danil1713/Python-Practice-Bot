@@ -9,20 +9,25 @@ from aiogram.types import (
     PreCheckoutQuery,
 )
 
-from app.bot.keyboards.subscription import get_stars_invoice_keyboard, get_subscription_keyboard, \
-    get_payment_support_keyboard
-from app.config import get_admin_username
-from app.services.payment_service import (
-    PaymentError,
-    create_payment,
-    process_telegram_stars_payment, cancel_payment, approve_pre_checkout,
-)
-from app.services.pricing_service import (
-    get_subscription_plan,
-)
 from app.bot.callbacks import (
     parse_callback_int_str,
     parse_callback_str,
+)
+from app.bot.keyboards.subscription import (
+    get_payment_support_keyboard,
+    get_stars_invoice_keyboard,
+    get_subscription_keyboard,
+)
+from app.config import get_admin_username
+from app.services.payment_service import (
+    PaymentError,
+    approve_pre_checkout,
+    cancel_payment,
+    create_payment,
+    process_telegram_stars_payment,
+)
+from app.services.pricing_service import (
+    get_subscription_plan,
 )
 
 logger = logging.getLogger(__name__)

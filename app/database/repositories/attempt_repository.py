@@ -1,9 +1,9 @@
-from sqlalchemy import func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
-from app.database.models.attempt import Attempt
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.models.attempt import Attempt
 
 ACTIVE_STATUSES = (
     "pending",

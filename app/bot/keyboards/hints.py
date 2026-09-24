@@ -3,12 +3,13 @@ from aiogram.types import (
     InlineKeyboardMarkup,
 )
 
-from app.services.hint_service import (
-    HintListItem,
-)
 from app.bot.callbacks import (
     build_callback_data,
 )
+from app.services.hint_service import (
+    HintListItem,
+)
+
 
 def get_hints_keyboard(
     hints: list[HintListItem],

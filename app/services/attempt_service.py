@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+
 from sqlalchemy.exc import IntegrityError
 
 from app.database.repositories.attempt_repository import (

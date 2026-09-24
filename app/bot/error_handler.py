@@ -2,7 +2,6 @@ import logging
 
 from aiogram.types import ErrorEvent
 
-
 logger = logging.getLogger(__name__)
 
 

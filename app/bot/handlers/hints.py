@@ -1,6 +1,9 @@
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
 
+from app.bot.callbacks import (
+    parse_callback_int,
+)
 from app.bot.keyboards.hints import (
     get_hints_keyboard,
 )
@@ -13,9 +16,6 @@ from app.services.project_service import (
 )
 from app.services.subscription_service import (
     has_active_subscription,
-)
-from app.bot.callbacks import (
-    parse_callback_int,
 )
 
 router = Router()

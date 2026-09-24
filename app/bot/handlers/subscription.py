@@ -1,20 +1,19 @@
-from datetime import datetime
-from zoneinfo import ZoneInfo
 from html import escape
 
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
 
-from app.bot.keyboards.subscription import (
-    get_subscription_keyboard, format_subscription_datetime,
+from app.bot.callbacks import (
+    parse_callback_str,
 )
-from app.config import get_app_timezone, get_admin_username
+from app.bot.keyboards.subscription import (
+    format_subscription_datetime,
+    get_subscription_keyboard,
+)
+from app.config import get_admin_username
 from app.services.pricing_service import get_subscription_plan
 from app.services.subscription_service import (
     get_subscription_view,
-)
-from app.bot.callbacks import (
-    parse_callback_str,
 )
 
 router = Router()

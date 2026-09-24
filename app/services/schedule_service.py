@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+from aiogram import Bot
+
 from app.database.repositories.course_repository import (
     CourseRepository,
 )
@@ -12,8 +14,6 @@ from app.database.repositories.scheduled_post_repository import (
 from app.database.session import (
     async_session_factory,
 )
-from aiogram import Bot
-
 from app.services.publishing_service import (
     publish_scheduled_post,
 )

@@ -1,7 +1,8 @@
-from sqlalchemy import select, or_
+from datetime import datetime
+
+from sqlalchemy import or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
 
 from app.database.models.user import User
 

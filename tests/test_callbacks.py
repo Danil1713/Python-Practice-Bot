@@ -1,14 +1,13 @@
 from app.bot.callbacks import (
     MAX_CALLBACK_DATA_BYTES,
+    CallbackDataError,
+    build_callback_data,
     parse_callback_int,
     parse_callback_int_str,
     parse_callback_parts,
     parse_callback_str,
 )
-from app.bot.callbacks import (
-    CallbackDataError,
-    build_callback_data,
-)
+
 
 def test_parse_callback_int():
     assert (

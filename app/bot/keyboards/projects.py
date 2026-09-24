@@ -2,13 +2,13 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-from app.services.project_service import (
-    ProjectListItem,
-)
+
 from app.bot.callbacks import (
     build_callback_data,
 )
-
+from app.services.project_service import (
+    ProjectListItem,
+)
 
 STATUS_ICONS = {
     "locked": "🔒",

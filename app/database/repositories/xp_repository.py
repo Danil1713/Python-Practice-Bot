@@ -1,12 +1,12 @@
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select
 
-from app.database.models.xp_transaction import (
-    XPTransaction,
-)
 from app.database.models.project import (
     Project,
+)
+from app.database.models.xp_transaction import (
+    XPTransaction,
 )
 
 

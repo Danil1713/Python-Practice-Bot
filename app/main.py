@@ -1,11 +1,10 @@
 import asyncio
 import logging
+from datetime import timedelta
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from datetime import timedelta
-
 from aiogram.fsm.storage.base import (
     DefaultKeyBuilder,
 )
@@ -14,24 +13,24 @@ from aiogram.fsm.storage.redis import (
 )
 
 from app.bot.error_handler import global_error_handler
-from app.bot.handlers.courses import router as courses_router
-from app.bot.handlers.menu import router as menu_router
-from app.bot.handlers.start import router as start_router
-from app.bot.handlers.hints import router as hints_router
-from app.bot.handlers.projects import router as projects_router
+from app.bot.handlers.admin import router as admin_router
 from app.bot.handlers.attempts import router as attempts_router
+from app.bot.handlers.courses import router as courses_router
+from app.bot.handlers.hints import router as hints_router
+from app.bot.handlers.menu import router as menu_router
+from app.bot.handlers.payments import router as payments_router
 from app.bot.handlers.progress import router as progress_router
+from app.bot.handlers.projects import router as projects_router
+from app.bot.handlers.start import router as start_router
+from app.bot.handlers.subscription import router as subscription_router
 from app.bot.handlers.xp import router as xp_router
+from app.config import get_bot_token, get_redis_url
 from app.database.session import engine
+from app.logging_config import setup_logging
+from app.scheduler.attempt_checks import run_attempt_check_worker
 from app.scheduler.payments import run_payment_recovery
 from app.scheduler.publishing import run_publishing_scheduler
-from app.scheduler.attempt_checks import run_attempt_check_worker
-from app.bot.handlers.admin import router as admin_router
-from app.bot.handlers.subscription import router as subscription_router
-from app.bot.handlers.payments import router as payments_router
 from app.services.ai_service import close_ai_client
-from app.config import get_bot_token, get_redis_url
-from app.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 

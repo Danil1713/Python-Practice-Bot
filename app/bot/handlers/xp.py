@@ -3,14 +3,14 @@ from html import escape
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
 
+from app.bot.callbacks import (
+    parse_callback_str,
+)
 from app.bot.keyboards.xp import (
     get_xp_keyboard,
 )
 from app.services.xp_service import (
     get_course_xp,
-)
-from app.bot.callbacks import (
-    parse_callback_str,
 )
 
 router = Router()

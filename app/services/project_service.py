@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from app.database.repositories.attempt_repository import (
+    AttemptRepository,
+)
 from app.database.repositories.course_repository import (
     CourseRepository,
 )
@@ -19,10 +22,6 @@ from app.database.repositories.user_repository import (
 from app.database.session import (
     async_session_factory,
 )
-from app.database.repositories.attempt_repository import (
-    AttemptRepository,
-)
-
 
 ProjectStatus = Literal[
     "locked",

@@ -2,13 +2,13 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-from app.services.attempt_service import (
-    AttemptListItem,
-)
+
 from app.bot.callbacks import (
     build_callback_data,
 )
-
+from app.services.attempt_service import (
+    AttemptListItem,
+)
 
 ATTEMPT_ICONS = {
     "pending": "⏳",

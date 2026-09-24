@@ -9,13 +9,11 @@ import asyncpg
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy.engine import make_url
-
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 

@@ -11,7 +11,6 @@ from app.database.session import (
     engine,
 )
 
-
 DEMO_CHANNEL = "@pythonpractice_demo"
 
 
