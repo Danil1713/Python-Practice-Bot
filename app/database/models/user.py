@@ -41,3 +41,13 @@ class User(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+    ai_review_consent_version: Mapped[str | None] = mapped_column(
+        String(16),
+        nullable=True,
+    )
+
+    ai_review_consent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )

@@ -1,5 +1,6 @@
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
+from html import escape
 
 from app.bot.keyboards.main_menu import (
     get_back_to_menu_keyboard,
@@ -14,22 +15,33 @@ from app.services.subscription_service import (
 from app.services.admin_service import (
     is_admin,
 )
+from app.bot.callbacks import (
+    parse_callback_str,
+)
 
 
 router = Router()
 
 
 @router.callback_query(
-    F.data.regexp(
-        r"^menu:(about):"
+    F.data.startswith(
+        "menu:about:"
     )
 )
 async def menu_section_handler(
     callback: CallbackQuery,
 ) -> None:
-    _, section, course_slug = (
-        callback.data.split(":")
+    course_slug = parse_callback_str(
+        callback.data,
+        "menu:about",
     )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     course = await get_course_by_slug(
         course_slug
@@ -42,14 +54,18 @@ async def menu_section_handler(
         )
         return
 
-    if section == "about":
-        text = (
-            f"<b>ℹ️ {course.title}</b>\n\n"
-            f"{course.description or ''}"
-        )
+    course_title = escape(
+        course.title
+    )
 
-    else:
-        text = "Неизвестный раздел."
+    course_description = escape(
+        course.description or ""
+    )
+
+    text = (
+        f"<b>ℹ️ {course_title}</b>\n\n"
+        f"{course_description or ''}"
+    )
 
     await callback.message.edit_text(
         text=text,
@@ -67,7 +83,17 @@ async def menu_section_handler(
 async def back_to_menu_handler(
     callback: CallbackQuery,
 ) -> None:
-    course_slug = callback.data.split(":")[2]
+    course_slug = parse_callback_str(
+        callback.data,
+        "nav:menu",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     course = await get_course_by_slug(
         course_slug
@@ -80,9 +106,13 @@ async def back_to_menu_handler(
         )
         return
 
+    course_title = escape(
+        course.title
+    )
+
     await callback.message.edit_text(
         text=(
-            f"<b>{course.title}</b>\n\n"
+            f"<b>{course_title}</b>\n\n"
             "Выбери нужный раздел:"
         ),
         reply_markup=get_main_menu_keyboard(

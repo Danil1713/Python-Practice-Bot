@@ -18,6 +18,10 @@ from app.database.repositories.scheduled_post_repository import (
 from app.database.session import (
     async_session_factory,
 )
+from app.services.telegram_post_validation_service import (
+    TelegramPostValidationError,
+    validate_telegram_post_content,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +77,27 @@ async def publish_scheduled_post(
 
         channel_id = course.telegram_channel_id
         content = post.content
+
+        try:
+            validate_telegram_post_content(
+                content
+            )
+
+        except TelegramPostValidationError as error:
+            logger.warning(
+                "Invalid scheduled post content "
+                "post_id=%s error=%s",
+                post_id,
+                error,
+            )
+
+            await post_repository.mark_failed(
+                post,
+                str(error),
+            )
+
+            await session.commit()
+            return
 
     try:
         message = await bot.send_message(

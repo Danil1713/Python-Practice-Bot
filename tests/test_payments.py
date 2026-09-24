@@ -174,7 +174,8 @@ async def test_successful_payment_is_idempotent():
         )
     )
 
-    assert first_result is True
+    assert first_result is not None
+    assert first_result.subscription_days == 30
 
     first_payment = await get_payment(
         payment_id
@@ -212,7 +213,7 @@ async def test_successful_payment_is_idempotent():
         )
     )
 
-    assert second_result is False
+    assert second_result is None
 
     second_subscription = (
         await get_subscription(
@@ -267,7 +268,8 @@ async def test_cancelled_payment_can_still_succeed():
         )
     )
 
-    assert processed is True
+    assert processed is not None
+    assert processed.subscription_days == 30
 
     payment = await get_payment(
         payment_id

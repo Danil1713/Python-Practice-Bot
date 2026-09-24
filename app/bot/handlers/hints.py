@@ -1,14 +1,11 @@
 from aiogram import F, Router
-from aiogram.types import (
-    CallbackQuery,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+from aiogram.types import CallbackQuery
 
 from app.bot.keyboards.hints import (
     get_hints_keyboard,
 )
 from app.services.hint_service import (
+    get_hint_open_view,
     get_project_hints,
 )
 from app.services.project_service import (
@@ -17,16 +14,9 @@ from app.services.project_service import (
 from app.services.subscription_service import (
     has_active_subscription,
 )
-from app.database.repositories.hint_repository import (
-    HintRepository,
+from app.bot.callbacks import (
+    parse_callback_int,
 )
-from app.database.session import (
-    async_session_factory,
-)
-from app.services.telegram_link_service import (
-    build_channel_message_url,
-)
-
 
 router = Router()
 
@@ -37,9 +27,17 @@ router = Router()
 async def hints_list_handler(
     callback: CallbackQuery,
 ) -> None:
-    project_id = int(
-        callback.data.split(":")[2]
+    project_id = parse_callback_int(
+        callback.data,
+        "project:hints",
     )
+
+    if project_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     project = await get_project_card(
         telegram_user_id=callback.from_user.id,
@@ -107,27 +105,43 @@ async def hints_list_handler(
 async def hint_open_handler(
     callback: CallbackQuery,
 ) -> None:
-    hint_id = int(
-        callback.data.split(":")[2]
+    hint_id = parse_callback_int(
+        callback.data,
+        "hint:open",
     )
 
-    async with async_session_factory() as session:
-        repository = HintRepository(
-            session
+    if hint_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
         )
+        return
 
-        hint = await repository.get_by_id(
-            hint_id
-        )
+    view = await get_hint_open_view(
+        hint_id
+    )
 
-    if hint is None:
+    if view is None:
         await callback.answer(
             "Подсказка не найдена.",
             show_alert=True,
         )
         return
 
-    if hint.published_at is None:
+    active = await has_active_subscription(
+        telegram_user_id=callback.from_user.id,
+        course_slug=view.course_slug,
+    )
+
+    if not active:
+        await callback.answer(
+            "🔒 Подсказки доступны только "
+            "при активной подписке.",
+            show_alert=True,
+        )
+        return
+
+    if not view.is_published:
         await callback.answer(
             "🔒 Эта подсказка ещё "
             "не опубликована.",
@@ -135,7 +149,14 @@ async def hint_open_handler(
         )
         return
 
+    if view.telegram_url is None:
+        await callback.answer(
+            "Не удалось открыть публикацию.",
+            show_alert=True,
+        )
+        return
+
     await callback.answer(
-        "Не удалось открыть публикацию.",
+        "Открой подсказку из списка.",
         show_alert=True,
     )

@@ -223,17 +223,41 @@ async def seed() -> None:
                 "xp_after_publish": 40,
                 "published_at": now,
             },
+            # Backend Web App
+            {
+                "project_id": projects_by_number[3].id,
+                "number": 1,
+                "xp_after_publish": 80,
+                "published_at": None,
+            },
+            {
+                "project_id": projects_by_number[3].id,
+                "number": 2,
+                "xp_after_publish": 60,
+                "published_at": None,
+            },
+            {
+                "project_id": projects_by_number[3].id,
+                "number": 3,
+                "xp_after_publish": 40,
+                "published_at": None,
+            },
         ]
 
         for hint in hints:
             statement = (
                 insert(Hint)
                 .values(**hint)
-                .on_conflict_do_nothing(
+                .on_conflict_do_update(
                     index_elements=[
                         Hint.project_id,
                         Hint.number,
-                    ]
+                    ],
+                    set_={
+                        "xp_after_publish": hint[
+                            "xp_after_publish"
+                        ],
+                    },
                 )
             )
 

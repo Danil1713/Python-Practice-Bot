@@ -9,7 +9,9 @@ from app.bot.keyboards.xp import (
 from app.services.xp_service import (
     get_course_xp,
 )
-
+from app.bot.callbacks import (
+    parse_callback_str,
+)
 
 router = Router()
 
@@ -20,7 +22,17 @@ router = Router()
 async def xp_handler(
     callback: CallbackQuery,
 ) -> None:
-    course_slug = callback.data.split(":")[2]
+    course_slug = parse_callback_str(
+        callback.data,
+        "menu:xp",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     view = await get_course_xp(
         telegram_user_id=callback.from_user.id,
@@ -34,9 +46,13 @@ async def xp_handler(
         )
         return
 
+    course_title = escape(
+        view.course_title
+    )
+
     lines = [
         f"<b>⭐ XP — "
-        f"{view.course_title}</b>",
+        f"{course_title}</b>",
         "",
         f"Всего XP: <b>{view.total_xp}</b>",
     ]

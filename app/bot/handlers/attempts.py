@@ -5,14 +5,6 @@ from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from app.bot.keyboards.attempts import (
-    get_attempt_detail_keyboard,
-    get_attempts_keyboard,
-    get_cancel_submission_keyboard,
-)
-from app.bot.keyboards.projects import (
-    get_project_card_keyboard,
-)
 from app.bot.states.attempts import (
     SolutionStates,
 )
@@ -32,12 +24,114 @@ from app.services.project_service import (
 from app.services.subscription_service import (
     has_active_subscription,
 )
+from app.bot.callbacks import (
+    parse_callback_int,
+)
+from app.bot.keyboards.attempts import (
+    get_ai_review_consent_keyboard,
+    get_attempt_detail_keyboard,
+    get_attempts_keyboard,
+    get_cancel_submission_keyboard,
+)
 
+from app.services.user_service import (
+    accept_ai_review_consent,
+    has_current_ai_review_consent,
+)
+from app.bot.views.project_card import (
+    render_project_card,
+)
 
 router = Router()
 
 
 MAX_SOLUTION_FILE_SIZE = 200 * 1024
+
+
+@router.callback_query(
+    F.data.startswith(
+        "attempt:ai-consent:"
+    )
+)
+async def ai_review_consent_handler(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    project_id = parse_callback_int(
+        callback.data,
+        "attempt:ai-consent",
+    )
+
+    if project_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    project = await get_project_card(
+        telegram_user_id=callback.from_user.id,
+        project_id=project_id,
+    )
+
+    if project is None:
+        await callback.answer(
+            "Проект не найден.",
+            show_alert=True,
+        )
+        return
+
+    active = await has_active_subscription(
+        telegram_user_id=callback.from_user.id,
+        course_slug=project.course_slug,
+    )
+
+    if not active:
+        await callback.answer(
+            "🔒 Для отправки решения "
+            "нужен доступ к уровню.",
+            show_alert=True,
+        )
+        return
+
+    accepted = await accept_ai_review_consent(
+        callback.from_user.id
+    )
+
+    if not accepted:
+        await callback.answer(
+            "Не удалось сохранить согласие.",
+            show_alert=True,
+        )
+        return
+
+    await state.set_state(
+        SolutionStates.waiting_for_file
+    )
+
+    await state.update_data(
+        project_id=project.id
+    )
+
+    await callback.message.edit_text(
+        text=(
+            f"<b>📤 Project "
+            f"{project.number} — "
+            f"{escape(project.title)}</b>\n\n"
+            "Отправь Python-файл "
+            "с решением.\n\n"
+            "Формат: <code>.py</code>"
+        ),
+        reply_markup=(
+            get_cancel_submission_keyboard(
+                project.id
+            )
+        ),
+    )
+
+    await callback.answer(
+        "✅ Согласие сохранено."
+    )
 
 @router.callback_query(
     F.data.startswith("project:submit:")
@@ -46,9 +140,17 @@ async def start_submission_handler(
     callback: CallbackQuery,
     state: FSMContext,
 ) -> None:
-    project_id = int(
-        callback.data.split(":")[2]
+    project_id = parse_callback_int(
+        callback.data,
+        "project:submit",
     )
+
+    if project_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     project = await get_project_card(
         telegram_user_id=callback.from_user.id,
@@ -90,6 +192,39 @@ async def start_submission_handler(
         )
         return
 
+    has_consent = (
+        await has_current_ai_review_consent(
+            callback.from_user.id
+        )
+    )
+
+    if not has_consent:
+        await callback.message.edit_text(
+            text=(
+                "🤖 <b>Автоматическая проверка</b>\n\n"
+                "Для проверки содержимое "
+                "Python-файла будет передано "
+                "внешнему AI-сервису.\n\n"
+                "Не отправляй в решении:\n"
+                "• пароли;\n"
+                "• API-ключи и токены;\n"
+                "• персональные данные;\n"
+                "• другие секретные данные.\n\n"
+                "Нажимая <b>«Согласен»</b>, "
+                "ты разрешаешь передать "
+                "содержимое файла для "
+                "автоматической проверки."
+            ),
+            reply_markup=(
+                get_ai_review_consent_keyboard(
+                    project.id
+                )
+            ),
+        )
+
+        await callback.answer()
+        return
+
     await state.set_state(
         SolutionStates.waiting_for_file
     )
@@ -102,7 +237,7 @@ async def start_submission_handler(
         text=(
             f"<b>📤 Project "
             f"{project.number} — "
-            f"{project.title}</b>\n\n"
+            f"{escape(project.title)}</b>\n\n"
             "Отправь Python-файл "
             "с решением.\n\n"
             "Формат: <code>.py</code>"
@@ -124,9 +259,17 @@ async def cancel_submission_handler(
     callback: CallbackQuery,
     state: FSMContext,
 ) -> None:
-    project_id = int(
-        callback.data.split(":")[2]
+    project_id = parse_callback_int(
+        callback.data,
+        "attempt:cancel",
     )
+
+    if project_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     await state.clear()
 
@@ -142,38 +285,19 @@ async def cancel_submission_handler(
         )
         return
 
-    if project.status == "completed":
-        status_text = "✅ Выполнен"
-        xp_text = (
-            f"Получено: "
-            f"<b>{project.awarded_xp} XP</b>"
-        )
+    active = await has_active_subscription(
+        telegram_user_id=callback.from_user.id,
+        course_slug=project.course_slug,
+    )
 
-    elif project.status == "pending":
-        status_text = "⏳ На проверке"
-        xp_text = (
-            f"Текущая награда: "
-            f"<b>{project.current_xp} XP</b>"
-        )
-
-    else:
-        status_text = "🟡 Не выполнен"
-        xp_text = (
-            f"Награда сейчас: "
-            f"<b>{project.current_xp} XP</b>"
-        )
+    text, keyboard = render_project_card(
+        project,
+        active_subscription=active,
+    )
 
     await callback.message.edit_text(
-        text=(
-            f"<b>Project {project.number} — "
-            f"{project.title}</b>\n\n"
-            f"Статус: {status_text}\n"
-            f"{xp_text}"
-        ),
-        reply_markup=get_project_card_keyboard(
-            project_id=project.id,
-            course_slug=project.course_slug,
-        ),
+        text=text,
+        reply_markup=keyboard,
     )
 
     await callback.answer(
@@ -254,6 +378,23 @@ async def solution_file_handler(
         )
         return
 
+    has_consent = (
+        await has_current_ai_review_consent(
+            message.from_user.id
+        )
+    )
+
+    if not has_consent:
+        await state.clear()
+
+        await message.answer(
+            "⚠️ Условия AI-проверки изменились.\n\n"
+            "Открой проект и нажми "
+            "«Отправить решение» заново."
+        )
+
+        return
+
     buffer = BytesIO()
 
     await bot.download(
@@ -319,6 +460,13 @@ async def solution_file_handler(
     if project is None:
         return
 
+    project_text, project_keyboard = (
+        render_project_card(
+            project,
+            active_subscription=active,
+        )
+    )
+
     status_message = await message.answer(
         text=(
             "✅ <b>Решение получено.</b>\n\n"
@@ -326,15 +474,9 @@ async def solution_file_handler(
             "Результат проверки появится "
             "в разделе "
             "<b>«Мои попытки»</b>.\n\n"
-            f"<b>Project "
-            f"{project.number} — "
-            f"{project.title}</b>\n\n"
-            "Статус: ⏳ На проверке"
+            f"{project_text}"
         ),
-        reply_markup=get_project_card_keyboard(
-            project_id=project.id,
-            course_slug=project.course_slug,
-        ),
+        reply_markup=project_keyboard,
     )
 
     await save_attempt_status_message(
@@ -363,9 +505,17 @@ async def wrong_solution_message_handler(
 async def attempts_list_handler(
     callback: CallbackQuery,
 ) -> None:
-    project_id = int(
-        callback.data.split(":")[2]
+    project_id = parse_callback_int(
+        callback.data,
+        "project:attempts",
     )
+
+    if project_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     view = await get_project_attempts(
         telegram_user_id=callback.from_user.id,
@@ -394,6 +544,7 @@ async def attempts_list_handler(
             "⏳ — проверяется\n"
             "❌ — не принято\n"
             "✅ — принято\n"
+            "🟠 — не принято автоматически\n"
             "⚠️ — ошибка проверки"
         )
 
@@ -428,6 +579,7 @@ async def show_attempt_detail(
         "checking": "⏳ Проверяется",
         "failed": "❌ Не принято",
         "passed": "✅ Принято",
+        "review": "🟠 Не принято автоматически",
         "error": "⚠️ Ошибка проверки",
     }
 
@@ -440,11 +592,15 @@ async def show_attempt_detail(
         attempt.filename
     )
 
+    project_title = escape(
+        attempt.project_title
+    )
+
     text = (
         f"<b>Попытка №"
         f"{attempt.number}</b>\n\n"
         f"Project {attempt.project_number} — "
-        f"{attempt.project_title}\n\n"
+        f"{project_title}\n\n"
         f"Статус: {status}\n"
         f"Файл: <code>{filename}</code>\n"
     )
@@ -475,9 +631,17 @@ async def show_attempt_detail(
 async def attempt_detail_handler(
     callback: CallbackQuery,
 ) -> None:
-    attempt_id = int(
-        callback.data.split(":")[2]
+    attempt_id = parse_callback_int(
+        callback.data,
+        "attempt:open",
     )
+
+    if attempt_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     await show_attempt_detail(
         callback=callback,
@@ -493,9 +657,17 @@ async def attempt_detail_handler(
 async def attempt_code_handler(
     callback: CallbackQuery,
 ) -> None:
-    attempt_id = int(
-        callback.data.split(":")[2]
+    attempt_id = parse_callback_int(
+        callback.data,
+        "attempt:code",
     )
+
+    if attempt_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     attempt = await get_attempt_detail(
         telegram_user_id=callback.from_user.id,
@@ -541,9 +713,17 @@ async def attempt_code_handler(
 async def attempt_feedback_handler(
     callback: CallbackQuery,
 ) -> None:
-    attempt_id = int(
-        callback.data.split(":")[2]
+    attempt_id = parse_callback_int(
+        callback.data,
+        "attempt:feedback",
     )
+
+    if attempt_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     attempt = await get_attempt_detail(
         telegram_user_id=callback.from_user.id,

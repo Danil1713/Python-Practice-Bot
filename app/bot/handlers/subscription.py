@@ -1,5 +1,6 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from html import escape
 
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
@@ -12,7 +13,9 @@ from app.services.pricing_service import get_subscription_plan
 from app.services.subscription_service import (
     get_subscription_view,
 )
-
+from app.bot.callbacks import (
+    parse_callback_str,
+)
 
 router = Router()
 
@@ -22,11 +25,25 @@ router = Router()
 async def subscription_handler(
     callback: CallbackQuery,
 ) -> None:
-    course_slug = callback.data.split(":")[2]
+    course_slug = parse_callback_str(
+        callback.data,
+        "menu:subscription",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     view = await get_subscription_view(
         telegram_user_id=callback.from_user.id,
         course_slug=course_slug,
+    )
+
+    course_title = escape(
+        view.course_title
     )
 
     plan = get_subscription_plan(
@@ -42,14 +59,14 @@ async def subscription_handler(
 
     if not view.requires_subscription:
         text = (
-            f"🎁 <b>{view.course_title}</b>\n\n"
+            f"🎁 <b>{course_title}</b>\n\n"
             "Этот уровень доступен бесплатно."
         )
 
     elif view.status == "active":
         text = (
             "💎 <b>Подписка активна</b>\n\n"
-            f"Курс: <b>{view.course_title}</b>\n"
+            f"Курс: <b>{course_title}</b>\n"
             f"Действует до: <b>"
             f"{format_subscription_datetime(view.ends_at)}"
             f"</b>"
@@ -58,7 +75,7 @@ async def subscription_handler(
     elif view.status == "expired":
         text = (
             "⌛ <b>Подписка закончилась</b>\n\n"
-            f"Курс: <b>{view.course_title}</b>\n"
+            f"Курс: <b>{course_title}</b>\n"
         )
 
         if view.ends_at is not None:
@@ -76,7 +93,7 @@ async def subscription_handler(
     else:
         text = (
             "🔒 <b>Подписка не активна</b>\n\n"
-            f"Курс: <b>{view.course_title}</b>\n\n"
+            f"Курс: <b>{course_title}</b>\n\n"
             "Для доступа к материалам "
             "нужна активная подписка."
         )

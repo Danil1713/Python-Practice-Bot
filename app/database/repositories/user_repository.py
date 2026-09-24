@@ -1,6 +1,7 @@
 from sqlalchemy import select, or_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 
 from app.database.models.user import User
 
@@ -99,3 +100,22 @@ class UserRepository:
         return list(
             result.scalars().all()
         )
+
+    async def set_ai_review_consent(
+            self,
+            *,
+            telegram_id: int,
+            version: str,
+            accepted_at: datetime,
+    ) -> bool:
+        user = await self.get_by_telegram_id(
+            telegram_id
+        )
+
+        if user is None:
+            return False
+
+        user.ai_review_consent_version = version
+        user.ai_review_consent_at = accepted_at
+
+        return True

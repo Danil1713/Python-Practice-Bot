@@ -21,6 +21,17 @@ class ScheduledPost(Base):
 
     __table_args__ = (
         CheckConstraint(
+            "post_type IN "
+            "('regular', 'project', 'hint')",
+            name="ck_scheduled_posts_post_type",
+        ),
+        CheckConstraint(
+            "status IN "
+            "('scheduled', 'publishing', "
+            "'published', 'failed', 'cancelled')",
+            name="ck_scheduled_posts_status",
+        ),
+        CheckConstraint(
             (
                 "("
                 "post_type = 'regular' "

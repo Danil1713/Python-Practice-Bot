@@ -172,6 +172,9 @@ async def create_attempt(
                 filename=filename,
                 source_code=source_code,
                 xp_snapshot=xp_snapshot,
+                requirements_snapshot=(
+                        project.ai_requirements or ""
+                ),
             )
 
             await session.commit()

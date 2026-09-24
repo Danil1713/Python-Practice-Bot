@@ -1,5 +1,6 @@
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
+from html import escape
 
 from app.bot.keyboards.courses import (
     get_courses_keyboard,
@@ -17,6 +18,9 @@ from app.services.subscription_service import (
 from app.services.admin_service import (
     is_admin,
 )
+from app.bot.callbacks import (
+    parse_callback_str,
+)
 
 
 router = Router()
@@ -28,7 +32,17 @@ router = Router()
 async def select_course_handler(
     callback: CallbackQuery,
 ) -> None:
-    course_slug = callback.data.split(":")[1]
+    course_slug = parse_callback_str(
+        callback.data,
+        "course",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     course = await get_course_by_slug(
         course_slug
@@ -41,6 +55,10 @@ async def select_course_handler(
         )
         return
 
+    course_title = escape(
+        course.title
+    )
+
     has_subscription = (
         await has_active_subscription(
             telegram_user_id=callback.from_user.id,
@@ -50,13 +68,13 @@ async def select_course_handler(
 
     if has_subscription:
         text = (
-            f"<b>{course.title}</b>\n\n"
+            f"<b>{course_title}</b>\n\n"
             "Выбери нужный раздел:"
         )
 
     else:
         text = (
-            f"<b>{course.title}</b>\n\n"
+            f"<b>{course_title}</b>\n\n"
             "⚠️ У тебя пока нет активной "
             "подписки на этот уровень.\n\n"
             "Ты можешь посмотреть интерфейс "

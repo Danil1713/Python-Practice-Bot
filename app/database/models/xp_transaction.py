@@ -7,6 +7,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    CheckConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,6 +23,10 @@ class XPTransaction(Base):
             "project_id",
             "reason",
             name="uq_xp_user_project_reason",
+        ),
+        CheckConstraint(
+            "amount > 0",
+            name="ck_xp_transactions_amount_positive",
         ),
     )
 

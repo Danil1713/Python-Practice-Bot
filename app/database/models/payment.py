@@ -6,7 +6,9 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    func, Text,
+    func,
+    Text,
+    CheckConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,6 +17,31 @@ from app.database.base import Base
 
 class Payment(Base):
     __tablename__ = "payments"
+
+    __table_args__ = (
+        CheckConstraint(
+            "provider = 'telegram_stars'",
+            name="ck_payments_provider",
+        ),
+        CheckConstraint(
+            "status IN "
+            "('pending', 'cancelled', "
+            "'review', 'succeeded')",
+            name="ck_payments_status",
+        ),
+        CheckConstraint(
+            "currency = 'XTR'",
+            name="ck_payments_currency",
+        ),
+        CheckConstraint(
+            "amount > 0",
+            name="ck_payments_amount_positive",
+        ),
+        CheckConstraint(
+            "subscription_days > 0",
+            name="ck_payments_subscription_days_positive",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -67,7 +94,7 @@ class Payment(Base):
     currency: Mapped[str] = mapped_column(
         String(8),
         nullable=False,
-        default="RUB",
+        default="XTR",
     )
 
     subscription_days: Mapped[int] = mapped_column(

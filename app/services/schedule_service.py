@@ -17,6 +17,10 @@ from aiogram import Bot
 from app.services.publishing_service import (
     publish_scheduled_post,
 )
+from app.services.telegram_post_validation_service import (
+    TelegramPostValidationError,
+    validate_telegram_post_content,
+)
 
 
 class ScheduleError(Exception):
@@ -74,6 +78,16 @@ async def create_scheduled_post(
     project_id: int | None = None,
     hint_id: int | None = None,
 ) -> ScheduledPostItem:
+    try:
+        validate_telegram_post_content(
+            content
+        )
+
+    except TelegramPostValidationError as error:
+        raise ScheduleError(
+            str(error)
+        ) from error
+
     if scheduled_at <= datetime.now(timezone.utc):
         raise ScheduleError(
             "Время публикации должно быть в будущем."
@@ -265,6 +279,16 @@ async def reschedule_post(
 
         if post is None:
             raise ScheduledPostNotFound()
+
+        try:
+            validate_telegram_post_content(
+                post.content
+            )
+
+        except TelegramPostValidationError as error:
+            raise ScheduleError(
+                str(error)
+            ) from error
 
         if post.status not in {
             "scheduled",

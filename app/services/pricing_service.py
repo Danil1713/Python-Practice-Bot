@@ -8,17 +8,23 @@ class SubscriptionPlan:
     days: int
 
 
-PLANS = {
-    "python_start": SubscriptionPlan(
-        course_slug="python-start",
+_SUBSCRIPTION_PLANS = (
+    SubscriptionPlan(
+        course_slug="python_start",
         stars_price=350,
         days=30,
     ),
-    "python_practice": SubscriptionPlan(
-        course_slug="python-practice",
+    SubscriptionPlan(
+        course_slug="python_practice",
         stars_price=500,
         days=30,
     ),
+)
+
+
+PLANS = {
+    plan.course_slug: plan
+    for plan in _SUBSCRIPTION_PLANS
 }
 
 

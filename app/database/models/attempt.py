@@ -9,6 +9,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
     BigInteger,
+    CheckConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,6 +25,21 @@ class Attempt(Base):
             "project_id",
             "attempt_number",
             name="uq_attempts_user_project_number",
+        ),
+        CheckConstraint(
+            "status IN "
+            "('pending', 'checking', "
+            "'passed', 'failed', "
+            "'review', 'error')",
+            name="ck_attempts_status",
+        ),
+        CheckConstraint(
+            "attempt_number > 0",
+            name="ck_attempts_attempt_number_positive",
+        ),
+        CheckConstraint(
+            "xp_snapshot >= 0",
+            name="ck_attempts_xp_snapshot_non_negative",
         ),
     )
 
@@ -74,6 +90,31 @@ class Attempt(Base):
     xp_snapshot: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
+    )
+
+    requirements_snapshot: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    evaluation_version: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+
+    ai_model: Mapped[str | None] = mapped_column(
+        String(128),
+        nullable=True,
+    )
+
+    ai_policy_version: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+
+    ai_result_json: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
     )
 
     ai_feedback: Mapped[str | None] = mapped_column(

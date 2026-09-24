@@ -129,3 +129,62 @@ def get_ai_max_concurrency() -> int:
         )
 
     return value
+
+def get_int_env(
+    name: str,
+    default: int,
+    *,
+    min_value: int | None = None,
+) -> int:
+    raw_value = os.getenv(
+        name,
+        str(default),
+    )
+
+    try:
+        value = int(raw_value)
+    except ValueError as error:
+        raise RuntimeError(
+            f"{name} должен быть целым числом"
+        ) from error
+
+    if (
+        min_value is not None
+        and value < min_value
+    ):
+        raise RuntimeError(
+            f"{name} должен быть не меньше "
+            f"{min_value}"
+        )
+
+    return value
+
+
+def get_float_env(
+    name: str,
+    default: float,
+    *,
+    min_value: float | None = None,
+) -> float:
+    raw_value = os.getenv(
+        name,
+        str(default),
+    )
+
+    try:
+        value = float(raw_value)
+    except ValueError as error:
+        raise RuntimeError(
+            f"{name} должен быть числом"
+        ) from error
+
+    if (
+        min_value is not None
+        and value < min_value
+    ):
+        raise RuntimeError(
+            f"{name} должен быть не меньше "
+            f"{min_value}"
+        )
+
+    return value

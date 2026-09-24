@@ -7,7 +7,9 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-
+from app.bot.callbacks import (
+    build_callback_data,
+)
 
 def get_subscription_keyboard(
     course_slug: str,
@@ -26,8 +28,10 @@ def get_subscription_keyboard(
                         f"⭐ Купить за "
                         f"{stars_price} Stars"
                     ),
-                    callback_data=(
-                        f"payment:stars:{course_slug}"
+                    callback_data=build_callback_data(
+                        "payment",
+                        "stars",
+                        course_slug,
                     ),
                 )
             ]
@@ -50,8 +54,10 @@ def get_subscription_keyboard(
         [
             InlineKeyboardButton(
                 text="🆘 Помощь с оплатой",
-                callback_data=(
-                    f"payment:support:{course_slug}"
+                callback_data=build_callback_data(
+                    "payment",
+                    "support",
+                    course_slug,
                 ),
             )
         ]
@@ -61,8 +67,10 @@ def get_subscription_keyboard(
         [
             InlineKeyboardButton(
                 text="⬅️ Назад",
-                callback_data=(
-                    f"nav:menu:{course_slug}"
+                callback_data=build_callback_data(
+                    "nav",
+                    "menu",
+                    course_slug,
                 ),
             )
         ]
@@ -102,10 +110,11 @@ def get_stars_invoice_keyboard(
             [
                 InlineKeyboardButton(
                     text="❌ Отмена",
-                    callback_data=(
-                        f"payment:cancel:"
-                        f"{payment_id}:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "payment",
+                        "cancel",
+                        payment_id,
+                        course_slug,
                     ),
                 )
             ],
@@ -131,8 +140,10 @@ def get_payment_support_keyboard(
             [
                 InlineKeyboardButton(
                     text="⬅️ Назад",
-                    callback_data=(
-                        f"menu:subscription:{course_slug}"
+                    callback_data=build_callback_data(
+                        "menu",
+                        "subscription",
+                        course_slug,
                     ),
                 )
             ]

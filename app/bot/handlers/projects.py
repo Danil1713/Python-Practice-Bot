@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from html import escape
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -6,7 +7,6 @@ from aiogram.types import (
 )
 
 from app.bot.keyboards.projects import (
-    get_project_card_keyboard,
     get_projects_keyboard,
 )
 from app.services.project_service import (
@@ -19,7 +19,13 @@ from app.services.subscription_service import (
 from app.services.telegram_link_service import (
     build_channel_message_url,
 )
-
+from app.bot.callbacks import (
+    parse_callback_int,
+    parse_callback_str,
+)
+from app.bot.views.project_card import (
+    render_project_card,
+)
 
 router = Router()
 
@@ -30,7 +36,17 @@ router = Router()
 async def projects_list_handler(
     callback: CallbackQuery,
 ) -> None:
-    course_slug = callback.data.split(":")[2]
+    course_slug = parse_callback_str(
+        callback.data,
+        "menu:projects",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     view = await get_course_projects(
         telegram_user_id=callback.from_user.id,
@@ -44,9 +60,13 @@ async def projects_list_handler(
         )
         return
 
+    course_title = escape(
+        view.course_title
+    )
+
     text = (
         f"<b>📚 Проекты — "
-        f"{view.course_title}</b>\n\n"
+        f"{course_title}</b>\n\n"
         "Проекты открываются только "
         "после их публикации в канале.\n\n"
         "🔒 — ещё не опубликован\n"
@@ -71,9 +91,17 @@ async def projects_list_handler(
 async def project_card_handler(
     callback: CallbackQuery,
 ) -> None:
-    project_id = int(
-        callback.data.split(":")[2]
+    project_id = parse_callback_int(
+        callback.data,
+        "project:open",
     )
+
+    if project_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     project = await get_project_card(
         telegram_user_id=callback.from_user.id,
@@ -100,56 +128,14 @@ async def project_card_handler(
         course_slug=project.course_slug,
     )
 
-    task_url = None
-
-    if (
-            active
-            and project.telegram_channel_id is not None
-            and project.telegram_message_id is not None
-    ):
-        task_url = build_channel_message_url(
-            channel_id=project.telegram_channel_id,
-            message_id=project.telegram_message_id,
-        )
-
-    if project.status == "completed":
-        status_text = "✅ Выполнен"
-
-        xp_text = (
-            f"Получено: "
-            f"<b>{project.awarded_xp} XP</b>"
-        )
-
-    elif project.status == "pending":
-        status_text = "⏳ На проверке"
-
-        xp_text = (
-            f"Текущая награда проекта: "
-            f"<b>{project.current_xp} XP</b>"
-        )
-
-    else:
-        status_text = "🟡 Не выполнен"
-
-        xp_text = (
-            f"Награда сейчас: "
-            f"<b>{project.current_xp} XP</b>"
-        )
-
-    text = (
-        f"<b>Project {project.number} — "
-        f"{project.title}</b>\n\n"
-        f"Статус: {status_text}\n"
-        f"{xp_text}"
+    text, keyboard = render_project_card(
+        project,
+        active_subscription=active,
     )
 
     await callback.message.edit_text(
         text=text,
-        reply_markup=get_project_card_keyboard(
-            project_id=project.id,
-            course_slug=project.course_slug,
-            task_url=task_url,
-        ),
+        reply_markup=keyboard,
     )
 
     await callback.answer()
@@ -161,9 +147,17 @@ async def project_card_handler(
 async def project_task_handler(
     callback: CallbackQuery,
 ) -> None:
-    project_id = int(
-        callback.data.split(":")[2]
+    project_id = parse_callback_int(
+        callback.data,
+        "project:task",
     )
+
+    if project_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     project = await get_project_card(
         telegram_user_id=callback.from_user.id,
@@ -219,11 +213,15 @@ async def project_task_handler(
         )
         return
 
+    project_title = escape(
+        project.title
+    )
+
     await callback.message.answer(
         text=(
             f"📖 <b>Project "
             f"{project.number} — "
-            f"{project.title}</b>\n\n"
+            f"{project_title}</b>\n\n"
             "Открой опубликованное задание "
             "по кнопке ниже."
         ),

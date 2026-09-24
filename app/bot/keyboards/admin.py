@@ -2,6 +2,9 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
+from app.bot.callbacks import (
+    build_callback_data,
+)
 
 
 def get_admin_menu_keyboard(
@@ -12,16 +15,21 @@ def get_admin_menu_keyboard(
         [
             InlineKeyboardButton(
                 text="📅 Расписание",
-                callback_data=(
-                    f"admin:schedule:{course_slug}"
+                callback_data=build_callback_data(
+                    "admin",
+                    "schedule",
+                    course_slug,
                 ),
             )
         ],
         [
             InlineKeyboardButton(
                 text="➕ Добавить публикацию",
-                callback_data=(
-                    f"admin:add:start:{course_slug}"
+                callback_data=build_callback_data(
+                    "admin",
+                    "add",
+                    "start",
+                    course_slug,
                 ),
             )
         ],
@@ -32,9 +40,10 @@ def get_admin_menu_keyboard(
             [
                 InlineKeyboardButton(
                     text="👤 Подписки",
-                    callback_data=(
-                        f"admin:subscriptions:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "subscriptions",
+                        course_slug,
                     ),
                 )
             ]
@@ -44,8 +53,10 @@ def get_admin_menu_keyboard(
         [
             InlineKeyboardButton(
                 text="⬅️ Назад",
-                callback_data=(
-                    f"nav:menu:{course_slug}"
+                callback_data=build_callback_data(
+                    "nav",
+                    "menu",
+                    course_slug,
                 ),
             )
         ]
@@ -91,9 +102,11 @@ def get_schedule_keyboard(
                         f"{type_icon} "
                         f"#{post.id}"
                     ),
-                    callback_data=(
-                        f"admin:post:{post.id}:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "post",
+                        post.id,
+                        course_slug,
                     ),
                 )
             ]
@@ -103,8 +116,11 @@ def get_schedule_keyboard(
         [
             InlineKeyboardButton(
                 text="➕ Добавить",
-                callback_data=(
-                    f"admin:add:start:{course_slug}"
+                callback_data=build_callback_data(
+                    "admin",
+                    "add",
+                    "start",
+                    course_slug,
                 ),
             )
         ]
@@ -114,8 +130,10 @@ def get_schedule_keyboard(
         [
             InlineKeyboardButton(
                 text="⬅️ Назад",
-                callback_data=(
-                    f"admin:menu:{course_slug}"
+                callback_data=build_callback_data(
+                    "admin",
+                    "menu",
+                    course_slug,
                 ),
             )
         ]
@@ -134,33 +152,41 @@ def get_scheduled_post_keyboard(
             [
                 InlineKeyboardButton(
                     text="🚀 Опубликовать сейчас",
-                    callback_data=(
-                        f"admin:publish:{post_id}:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "publish",
+                        post_id,
+                        course_slug,
                     ),
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="🕒 Перенести",
-                    callback_data=(
-                        f"admin:reschedule:{post_id}:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "reschedule",
+                        post_id,
+                        course_slug,
                     ),
                 ),
                 InlineKeyboardButton(
                     text="❌ Отменить",
-                    callback_data=(
-                        f"admin:cancel:{post_id}:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "cancel",
+                        post_id,
+                        course_slug,
                     ),
                 ),
             ],
             [
                 InlineKeyboardButton(
                     text="⬅️ Назад",
-                    callback_data=(
-                        f"admin:schedule:{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "schedule",
+                        course_slug,
                     ),
                 )
             ],
@@ -176,9 +202,11 @@ def get_admin_input_cancel_keyboard(
             [
                 InlineKeyboardButton(
                     text="❌ Отмена",
-                    callback_data=(
-                        f"admin:post:{post_id}:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "post",
+                        post_id,
+                        course_slug,
                     ),
                 )
             ]
@@ -193,35 +221,46 @@ def get_post_type_keyboard(
             [
                 InlineKeyboardButton(
                     text="📝 Обычный пост",
-                    callback_data=(
-                        f"admin:add:type:regular:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "add",
+                        "type",
+                        "regular",
+                        course_slug,
                     ),
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="🚀 Project",
-                    callback_data=(
-                        f"admin:add:type:project:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "add",
+                        "type",
+                        "project",
+                        course_slug,
                     ),
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="💡 Hint",
-                    callback_data=(
-                        f"admin:add:type:hint:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "add",
+                        "type",
+                        "hint",
+                        course_slug,
                     ),
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="❌ Отмена",
-                    callback_data=(
-                        f"admin:menu:{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "menu",
+                        course_slug,
                     ),
                 )
             ],
@@ -242,10 +281,12 @@ def get_project_selection_keyboard(
                         f"Project {project.number} — "
                         f"{project.title}"
                     ),
-                    callback_data=(
-                        f"admin:add:project:"
-                        f"{project.id}:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "add",
+                        "project",
+                        project.id,
+                        course_slug,
                     ),
                 )
             ]
@@ -255,8 +296,10 @@ def get_project_selection_keyboard(
         [
             InlineKeyboardButton(
                 text="❌ Отмена",
-                callback_data=(
-                    f"admin:menu:{course_slug}"
+                callback_data=build_callback_data(
+                    "admin",
+                    "menu",
+                    course_slug,
                 ),
             )
         ]
@@ -277,10 +320,11 @@ def get_hint_selection_keyboard(
             [
                 InlineKeyboardButton(
                     text=f"💡 Hint {hint.number}",
-                    callback_data=(
-                        f"admin:add:hint:"
-                        f"{hint.id}:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "add",
+                        "hint",
+                        hint.id,
                     ),
                 )
             ]
@@ -290,8 +334,10 @@ def get_hint_selection_keyboard(
         [
             InlineKeyboardButton(
                 text="❌ Отмена",
-                callback_data=(
-                    f"admin:menu:{course_slug}"
+                callback_data=build_callback_data(
+                    "admin",
+                    "menu",
+                    course_slug,
                 ),
             )
         ]
@@ -315,8 +361,10 @@ def get_schedule_confirm_keyboard(
             [
                 InlineKeyboardButton(
                     text="❌ Отмена",
-                    callback_data=(
-                        f"admin:menu:{course_slug}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "menu",
+                        course_slug,
                     ),
                 )
             ],
@@ -343,9 +391,11 @@ def get_subscription_users_keyboard(
             [
                 InlineKeyboardButton(
                     text=label,
-                    callback_data=(
-                        f"admin:sub:user:"
-                        f"{user.id}"
+                    callback_data=build_callback_data(
+                        "admin",
+                        "sub",
+                        "user",
+                        user.id,
                     ),
                 )
             ]

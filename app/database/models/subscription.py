@@ -6,6 +6,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    CheckConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,6 +21,14 @@ class Subscription(Base):
             "user_id",
             "course_id",
             name="uq_subscriptions_user_course",
+        ),
+        CheckConstraint(
+            "status IN ('active', 'cancelled')",
+            name="ck_subscriptions_status",
+        ),
+        CheckConstraint(
+            "ends_at > starts_at",
+            name="ck_subscriptions_dates",
         ),
     )
 

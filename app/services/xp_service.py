@@ -4,9 +4,6 @@ from datetime import datetime
 from app.database.repositories.course_repository import (
     CourseRepository,
 )
-from app.database.repositories.project_repository import (
-    ProjectRepository,
-)
 from app.database.repositories.user_repository import (
     UserRepository,
 )
@@ -40,36 +37,48 @@ async def get_course_xp(
     course_slug: str,
 ) -> CourseXPView | None:
     async with async_session_factory() as session:
-        user_repository = UserRepository(session)
-        course_repository = CourseRepository(session)
-        project_repository = ProjectRepository(
+        user_repository = UserRepository(
             session
         )
-        xp_repository = XPRepository(session)
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_user_id
+        course_repository = CourseRepository(
+            session
+        )
+
+        xp_repository = XPRepository(
+            session
+        )
+
+        user = (
+            await user_repository
+            .get_by_telegram_id(
+                telegram_user_id
+            )
         )
 
         if user is None:
             return None
 
-        course = await course_repository.get_by_slug(
-            course_slug
+        course = (
+            await course_repository.get_by_slug(
+                course_slug
+            )
         )
 
         if course is None:
             return None
 
         total_xp = (
-            await xp_repository.get_total_by_course(
+            await xp_repository
+            .get_total_by_course(
                 user_id=user.id,
                 course_id=course.id,
             )
         )
 
         transactions = (
-            await xp_repository.get_recent_by_course(
+            await xp_repository
+            .get_recent_by_course(
                 user_id=user.id,
                 course_id=course.id,
                 limit=10,
@@ -78,28 +87,24 @@ async def get_course_xp(
 
         history: list[XPHistoryItem] = []
 
-        for transaction in transactions:
-            project_number = None
-            project_title = None
-
-            if transaction.project_id is not None:
-                project = (
-                    await project_repository.get_by_id(
-                        transaction.project_id
-                    )
-                )
-
-                if project is not None:
-                    project_number = project.number
-                    project_title = project.title
-
+        for (
+            transaction,
+            project_number,
+            project_title,
+        ) in transactions:
             history.append(
                 XPHistoryItem(
                     amount=transaction.amount,
                     reason=transaction.reason,
-                    project_number=project_number,
-                    project_title=project_title,
-                    created_at=transaction.created_at,
+                    project_number=(
+                        project_number
+                    ),
+                    project_title=(
+                        project_title
+                    ),
+                    created_at=(
+                        transaction.created_at
+                    ),
                 )
             )
 

@@ -4,7 +4,6 @@ from uuid import uuid4
 from aiogram import F, Router, Bot
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
-from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from app.config import get_app_timezone
@@ -41,6 +40,24 @@ from app.services.schedule_service import (
 from app.bot.states.admin import (
     AdminScheduleStates,
 )
+from app.bot.callbacks import (
+    parse_callback_int,
+    parse_callback_int_str,
+    parse_callback_str,
+)
+from datetime import UTC, datetime
+
+from app.utils.datetime_utils import (
+    AmbiguousLocalTime,
+    InvalidDateTimeFormat,
+    NonexistentLocalTime,
+    parse_local_datetime_to_utc,
+)
+from app.services.telegram_post_validation_service import (
+    TelegramPostValidationError,
+    build_telegram_post_preview,
+    validate_telegram_post_content,
+)
 
 
 router = Router()
@@ -68,7 +85,17 @@ async def admin_menu_handler(
     if not await check_admin(callback):
         return
 
-    course_slug = callback.data.split(":")[2]
+    course_slug = parse_callback_str(
+        callback.data,
+        "admin:menu",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     course = await get_course_by_slug(
         course_slug
@@ -105,7 +132,17 @@ async def admin_schedule_handler(
     if not await check_admin(callback):
         return
 
-    course_slug = callback.data.split(":")[2]
+    course_slug = parse_callback_str(
+        callback.data,
+        "admin:schedule",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     posts = await get_course_schedule(
         course_slug
@@ -163,10 +200,19 @@ async def admin_post_handler(
 
     await state.clear()
 
-    parts = callback.data.split(":")
+    parsed = parse_callback_int_str(
+        callback.data,
+        "admin:post",
+    )
 
-    post_id = int(parts[2])
-    course_slug = parts[3]
+    if parsed is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    post_id, course_slug = parsed
 
     post = await get_scheduled_post_detail(
         post_id
@@ -219,10 +265,19 @@ async def admin_publish_now_handler(
     if not await check_admin(callback):
         return
 
-    parts = callback.data.split(":")
+    parsed = parse_callback_int_str(
+        callback.data,
+        "admin:publish",
+    )
 
-    post_id = int(parts[2])
-    course_slug = parts[3]
+    if parsed is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    post_id, course_slug = parsed
 
     try:
         await publish_post_now(
@@ -238,6 +293,13 @@ async def admin_publish_now_handler(
         return
 
     except ScheduledPostNotEditable as error:
+        await callback.answer(
+            str(error),
+            show_alert=True,
+        )
+        return
+
+    except ScheduleError as error:
         await callback.answer(
             str(error),
             show_alert=True,
@@ -273,10 +335,19 @@ async def admin_cancel_post_handler(
     if not await check_admin(callback):
         return
 
-    parts = callback.data.split(":")
+    parsed = parse_callback_int_str(
+        callback.data,
+        "admin:cancel",
+    )
 
-    post_id = int(parts[2])
-    course_slug = parts[3]
+    if parsed is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    post_id, course_slug = parsed
 
     try:
         await cancel_scheduled_post(
@@ -324,10 +395,19 @@ async def admin_reschedule_start_handler(
     if not await check_admin(callback):
         return
 
-    parts = callback.data.split(":")
+    parsed = parse_callback_int_str(
+        callback.data,
+        "admin:reschedule",
+    )
 
-    post_id = int(parts[2])
-    course_slug = parts[3]
+    if parsed is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    post_id, course_slug = parsed
 
     await state.set_state(
         AdminScheduleStates
@@ -345,8 +425,8 @@ async def admin_reschedule_start_handler(
             "Отправь новую дату и время "
             "в формате:\n\n"
             "<code>05.09.2026 18:30</code>\n\n"
-            "Время указывай по своему "
-            "местному времени."
+            f"Часовой пояс: "
+            f"<code>{escape(get_app_timezone())}</code>"
         ),
         reply_markup=get_admin_input_cancel_keyboard(
             post_id=post_id,
@@ -371,12 +451,12 @@ async def admin_reschedule_datetime_handler(
     value = (message.text or "").strip()
 
     try:
-        local_datetime = datetime.strptime(
+        scheduled_at = parse_local_datetime_to_utc(
             value,
-            "%d.%m.%Y %H:%M",
+            get_app_timezone(),
         )
 
-    except ValueError:
+    except InvalidDateTimeFormat:
         await message.answer(
             "❌ Неверный формат.\n\n"
             "Используй:\n"
@@ -384,21 +464,27 @@ async def admin_reschedule_datetime_handler(
         )
         return
 
-    timezone = ZoneInfo(
-        get_app_timezone()
-    )
-
-    local_datetime = (
-        local_datetime.replace(
-            tzinfo=timezone
+    except NonexistentLocalTime:
+        await message.answer(
+            "❌ Такого местного времени "
+            "не существует из-за перевода часов.\n\n"
+            "Выбери другое время."
         )
-    )
+        return
 
-    scheduled_at = (
-        local_datetime.astimezone(
-            ZoneInfo("UTC")
+    except AmbiguousLocalTime:
+        await message.answer(
+            "❌ Это время встречается дважды "
+            "из-за перевода часов.\n\n"
+            "Выбери другое время."
         )
-    )
+        return
+
+    if scheduled_at <= datetime.now(UTC):
+        await message.answer(
+            "❌ Время должно быть в будущем."
+        )
+        return
 
     data = await state.get_data()
 
@@ -467,7 +553,17 @@ async def admin_add_post_handler(
 
     await state.clear()
 
-    course_slug = callback.data.split(":")[3]
+    course_slug = parse_callback_str(
+        callback.data,
+        "admin:add:start",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     await state.set_state(
         AdminScheduleStates.choosing_post_type
@@ -502,7 +598,17 @@ async def admin_add_regular_handler(
     if not await check_admin(callback):
         return
 
-    course_slug = callback.data.split(":")[4]
+    course_slug = parse_callback_str(
+        callback.data,
+        "admin:add:type:regular",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     await state.update_data(
         course_slug=course_slug,
@@ -538,7 +644,17 @@ async def admin_add_project_type_handler(
     if not await check_admin(callback):
         return
 
-    course_slug = callback.data.split(":")[4]
+    course_slug = parse_callback_str(
+        callback.data,
+        "admin:add:type:project",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     projects = await get_course_projects_for_schedule(
         course_slug
@@ -578,10 +694,19 @@ async def admin_add_project_select_handler(
     if not await check_admin(callback):
         return
 
-    parts = callback.data.split(":")
+    parsed = parse_callback_int_str(
+        callback.data,
+        "admin:add:project",
+    )
 
-    project_id = int(parts[3])
-    course_slug = parts[4]
+    if parsed is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    project_id, course_slug = parsed
 
     data = await state.get_data()
 
@@ -643,7 +768,17 @@ async def admin_add_hint_type_handler(
     if not await check_admin(callback):
         return
 
-    course_slug = callback.data.split(":")[4]
+    course_slug = parse_callback_str(
+        callback.data,
+        "admin:add:type:hint",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     projects = await get_course_projects_for_schedule(
         course_slug
@@ -684,9 +819,17 @@ async def admin_add_hint_select_handler(
     if not await check_admin(callback):
         return
 
-    parts = callback.data.split(":")
+    hint_id = parse_callback_int(
+        callback.data,
+        "admin:add:hint",
+    )
 
-    hint_id = int(parts[3])
+    if hint_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     await state.update_data(
         hint_id=hint_id,
@@ -719,9 +862,16 @@ async def admin_add_content_handler(
 
     content = message.html_text
 
-    if not content.strip():
+    try:
+        validate_telegram_post_content(
+            content
+        )
+
+    except TelegramPostValidationError as error:
         await message.answer(
-            "❌ Текст публикации пустой."
+            "❌ <b>Публикацию нельзя "
+            "сохранить.</b>\n\n"
+            f"{escape(str(error))}"
         )
         return
 
@@ -737,7 +887,9 @@ async def admin_add_content_handler(
         text=(
             "🕒 <b>Когда опубликовать?</b>\n\n"
             "Отправь дату и время:\n\n"
-            "<code>05.09.2026 18:30</code>"
+            "<code>05.09.2026 18:30</code>\n\n"
+            f"Часовой пояс: "
+            f"<code>{escape(get_app_timezone())}</code>"
         )
     )
 
@@ -755,12 +907,12 @@ async def admin_add_datetime_handler(
     value = (message.text or "").strip()
 
     try:
-        local_datetime = datetime.strptime(
+        scheduled_at = parse_local_datetime_to_utc(
             value,
-            "%d.%m.%Y %H:%M",
+            get_app_timezone(),
         )
 
-    except ValueError:
+    except InvalidDateTimeFormat:
         await message.answer(
             "❌ Неверный формат.\n\n"
             "Пример:\n"
@@ -768,19 +920,23 @@ async def admin_add_datetime_handler(
         )
         return
 
-    timezone = ZoneInfo(
-        get_app_timezone()
-    )
+    except NonexistentLocalTime:
+        await message.answer(
+            "❌ Такого местного времени "
+            "не существует из-за перевода часов.\n\n"
+            "Выбери другое время."
+        )
+        return
 
-    scheduled_at = (
-        local_datetime
-        .replace(tzinfo=timezone)
-        .astimezone(ZoneInfo("UTC"))
-    )
+    except AmbiguousLocalTime:
+        await message.answer(
+            "❌ Это время встречается дважды "
+            "из-за перевода часов.\n\n"
+            "Выбери другое время."
+        )
+        return
 
-    if scheduled_at <= datetime.now(
-        ZoneInfo("UTC")
-    ):
+    if scheduled_at <= datetime.now(UTC):
         await message.answer(
             "❌ Время должно быть в будущем."
         )
@@ -792,8 +948,11 @@ async def admin_add_datetime_handler(
 
     data = await state.get_data()
 
-    await state.update_data(
-        subscription_idempotency_key=uuid4().hex
+    content_preview = (
+        build_telegram_post_preview(
+            data["content"],
+            max_chars=2000,
+        )
     )
 
     await state.set_state(
@@ -805,8 +964,9 @@ async def admin_add_datetime_handler(
             "📋 <b>Проверь публикацию</b>\n\n"
             f"Тип: <b>{data['post_type']}</b>\n"
             f"Время: <b>{value}</b>\n\n"
-            "<b>Текст:</b>\n\n"
-            f"{data['content']}"
+            "<b>Текст "
+            "(предпросмотр):</b>\n\n"
+            f"{escape(content_preview)}"
         ),
         reply_markup=get_schedule_confirm_keyboard(
             data["course_slug"]
@@ -886,7 +1046,17 @@ async def admin_subscriptions_handler(
 
     await state.clear()
 
-    course_slug = callback.data.split(":")[2]
+    course_slug = parse_callback_str(
+        callback.data,
+        "admin:subscriptions",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     await state.set_state(
         AdminScheduleStates
@@ -1005,9 +1175,17 @@ async def admin_subscription_user_handler(
     if not await check_admin(callback):
         return
 
-    user_id = int(
-        callback.data.split(":")[3]
+    user_id = parse_callback_int(
+        callback.data,
+        "admin:sub:user",
     )
+
+    if user_id is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
 
     await state.update_data(
         subscription_user_id=user_id
@@ -1070,7 +1248,8 @@ async def admin_subscription_days_handler(
         return
 
     await state.update_data(
-        subscription_days=days
+        subscription_days=days,
+        subscription_idempotency_key=uuid4().hex,
     )
 
     data = await state.get_data()
@@ -1084,7 +1263,7 @@ async def admin_subscription_days_handler(
         text=(
             "📋 <b>Подтверждение</b>\n\n"
             f"Курс: <b>"
-            f"{data['subscription_course_slug']}"
+            f"{escape(data['subscription_course_slug'])}"
             f"</b>\n"
             f"Срок: <b>{days} дней</b>\n\n"
             "Выдать / продлить подписку?"

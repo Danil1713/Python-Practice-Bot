@@ -5,6 +5,9 @@ from sqlalchemy import func, select
 from app.database.models.xp_transaction import (
     XPTransaction,
 )
+from app.database.models.project import (
+    Project,
+)
 
 
 class XPRepository:
@@ -72,12 +75,29 @@ class XPRepository:
             user_id: int,
             course_id: int,
             limit: int = 10,
-    ) -> list[XPTransaction]:
+    ) -> list[
+        tuple[
+            XPTransaction,
+            int | None,
+            str | None,
+        ]
+    ]:
         statement = (
-            select(XPTransaction)
+            select(
+                XPTransaction,
+                Project.number,
+                Project.title,
+            )
+            .outerjoin(
+                Project,
+                Project.id
+                == XPTransaction.project_id,
+            )
             .where(
-                XPTransaction.user_id == user_id,
-                XPTransaction.course_id == course_id,
+                XPTransaction.user_id
+                == user_id,
+                XPTransaction.course_id
+                == course_id,
             )
             .order_by(
                 XPTransaction.created_at.desc()
@@ -89,6 +109,16 @@ class XPRepository:
             statement
         )
 
-        return list(
-            result.scalars().all()
-        )
+        return [
+            (
+                transaction,
+                project_number,
+                project_title,
+            )
+            for (
+                transaction,
+                project_number,
+                project_title,
+            ) in result.all()
+        ]
+

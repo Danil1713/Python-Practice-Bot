@@ -2,9 +2,11 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-
 from app.services.project_service import (
     ProjectListItem,
+)
+from app.bot.callbacks import (
+    build_callback_data,
 )
 
 
@@ -35,9 +37,10 @@ def get_projects_keyboard(
                         f"{project.number} — "
                         f"{project.title}"
                     ),
-                    callback_data=(
-                        f"project:open:"
-                        f"{project.id}"
+                    callback_data=build_callback_data(
+                        "project",
+                        "open",
+                        project.id,
                     ),
                 )
             ]
@@ -47,8 +50,10 @@ def get_projects_keyboard(
         [
             InlineKeyboardButton(
                 text="⬅️ Назад",
-                callback_data=(
-                    f"nav:menu:{course_slug}"
+                callback_data=build_callback_data(
+                    "nav",
+                    "menu",
+                    course_slug,
                 ),
             )
         ]
@@ -72,8 +77,10 @@ def get_project_card_keyboard(
     else:
         task_button = InlineKeyboardButton(
             text="📖 Открыть задание",
-            callback_data=(
-                f"project:task:{project_id}"
+            callback_data=build_callback_data(
+                "project",
+                "task",
+                project_id,
             ),
         )
 
@@ -85,33 +92,40 @@ def get_project_card_keyboard(
             [
                 InlineKeyboardButton(
                     text="📤 Отправить решение",
-                    callback_data=(
-                        f"project:submit:{project_id}"
+                    callback_data=build_callback_data(
+                        "project",
+                        "submit",
+                        project_id,
                     ),
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="💡 Подсказки",
-                    callback_data=(
-                        f"project:hints:{project_id}"
+                    callback_data=build_callback_data(
+                        "project",
+                        "hints",
+                        project_id,
                     ),
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="🧾 Мои попытки",
-                    callback_data=(
-                        f"project:attempts:{project_id}"
+                    callback_data=build_callback_data(
+                        "project",
+                        "attempts",
+                        project_id,
                     ),
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="⬅️ Назад",
-                    callback_data=(
-                        f"menu:projects:"
-                        f"{course_slug}"
+                    callback_data=build_callback_data(
+                        "menu",
+                        "projects",
+                        course_slug,
                     ),
                 )
             ],

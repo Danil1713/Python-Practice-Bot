@@ -2,6 +2,9 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
+from app.bot.callbacks import (
+    build_callback_data,
+)
 
 
 def get_progress_keyboard(
@@ -12,16 +15,20 @@ def get_progress_keyboard(
             [
                 InlineKeyboardButton(
                     text="📚 Проекты",
-                    callback_data=(
-                        f"menu:projects:{course_slug}"
+                    callback_data=build_callback_data(
+                        "menu",
+                        "projects",
+                        course_slug,
                     ),
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="⬅️ Назад",
-                    callback_data=(
-                        f"nav:menu:{course_slug}"
+                    callback_data=build_callback_data(
+                        "nav",
+                        "menu",
+                        course_slug,
                     ),
                 )
             ],

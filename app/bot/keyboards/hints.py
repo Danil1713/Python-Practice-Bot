@@ -6,7 +6,9 @@ from aiogram.types import (
 from app.services.hint_service import (
     HintListItem,
 )
-
+from app.bot.callbacks import (
+    build_callback_data,
+)
 
 def get_hints_keyboard(
     hints: list[HintListItem],
@@ -36,8 +38,10 @@ def get_hints_keyboard(
                     f"{icon} Подсказка "
                     f"{hint.number}"
                 ),
-                callback_data=(
-                    f"hint:open:{hint.id}"
+                callback_data=build_callback_data(
+                    "hint",
+                    "open",
+                    hint.id,
                 ),
             )
 
@@ -49,8 +53,10 @@ def get_hints_keyboard(
         [
             InlineKeyboardButton(
                 text="⬅️ Назад",
-                callback_data=(
-                    f"project:open:{project_id}"
+                callback_data=build_callback_data(
+                    "project",
+                    "open",
+                    project_id,
                 ),
             )
         ]

@@ -50,6 +50,10 @@ class PaymentCheckoutView:
     currency: str
     subscription_days: int
 
+@dataclass(frozen=True)
+class ProcessedPayment:
+    subscription_days: int
+
 async def create_payment(
     *,
     telegram_user_id: int,
@@ -171,7 +175,7 @@ async def _process_telegram_stars_payment(
     telegram_payment_charge_id: str,
     currency: str,
     total_amount: int,
-) -> bool:
+) -> ProcessedPayment | None:
     now = datetime.now(
         timezone.utc
     )
@@ -261,11 +265,8 @@ async def _process_telegram_stars_payment(
                 "не совпадает."
             )
 
-        # Повторная доставка того же
-        # successful_payment безопасна.
         if payment.status == "succeeded":
-            return False
-
+            return None
         if payment.external_payment_id is None:
             await payment_repository.set_external_id(
                 payment,
@@ -288,7 +289,9 @@ async def _process_telegram_stars_payment(
 
         await session.commit()
 
-        return True
+        return ProcessedPayment(
+            subscription_days=payment.subscription_days,
+        )
 
 async def process_telegram_stars_payment(
     *,
@@ -297,7 +300,7 @@ async def process_telegram_stars_payment(
     telegram_payment_charge_id: str,
     currency: str,
     total_amount: int,
-) -> bool:
+) -> ProcessedPayment | None:
     try:
         return await (
             _process_telegram_stars_payment(

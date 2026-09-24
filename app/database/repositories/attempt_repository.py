@@ -58,13 +58,14 @@ class AttemptRepository:
         return current_max + 1
 
     async def create(
-        self,
-        user_id: int,
-        project_id: int,
-        attempt_number: int,
-        filename: str,
-        source_code: str,
-        xp_snapshot: int,
+            self,
+            user_id: int,
+            project_id: int,
+            attempt_number: int,
+            filename: str,
+            source_code: str,
+            xp_snapshot: int,
+            requirements_snapshot: str,
     ) -> Attempt:
         attempt = Attempt(
             user_id=user_id,
@@ -74,6 +75,7 @@ class AttemptRepository:
             source_code=source_code,
             status="pending",
             xp_snapshot=xp_snapshot,
+            requirements_snapshot=requirements_snapshot,
         )
 
         self.session.add(attempt)
@@ -221,6 +223,21 @@ class AttemptRepository:
 
         await self.session.flush()
 
+    async def mark_review(
+            self,
+            attempt: Attempt,
+            feedback: str,
+    ) -> None:
+        attempt.status = "review"
+        attempt.ai_feedback = feedback
+        attempt.error_message = None
+        attempt.checking_started_at = None
+        attempt.checked_at = datetime.now(
+            timezone.utc
+        )
+
+        await self.session.flush()
+
     async def mark_error(
             self,
             attempt: Attempt,
@@ -327,3 +344,25 @@ class AttemptRepository:
         await self.session.flush()
 
         return len(attempts)
+
+    async def set_evaluation_metadata(
+            self,
+            attempt: Attempt,
+            *,
+            evaluation_version: str,
+            ai_model: str | None,
+            ai_policy_version: str | None,
+            ai_result_json: str | None,
+    ) -> None:
+        attempt.evaluation_version = (
+            evaluation_version
+        )
+        attempt.ai_model = ai_model
+        attempt.ai_policy_version = (
+            ai_policy_version
+        )
+        attempt.ai_result_json = (
+            ai_result_json
+        )
+
+        await self.session.flush()
