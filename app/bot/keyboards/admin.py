@@ -271,6 +271,7 @@ def get_post_type_keyboard(
 def get_project_selection_keyboard(
     course_slug: str,
     projects: list,
+    allow_create: bool = False,
 ) -> InlineKeyboardMarkup:
     rows = []
 
@@ -293,13 +294,28 @@ def get_project_selection_keyboard(
             ]
         )
 
+    if allow_create:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="➕ Создать проект",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "create",
+                        "project",
+                    ),
+                )
+            ]
+        )
+
     rows.append(
         [
             InlineKeyboardButton(
-                text="❌ Отмена",
+                text="⬅️ Назад",
                 callback_data=build_callback_data(
                     "admin",
-                    "menu",
+                    "add",
+                    "start",
                     course_slug,
                 ),
             )
@@ -334,10 +350,24 @@ def get_hint_selection_keyboard(
     rows.append(
         [
             InlineKeyboardButton(
-                text="❌ Отмена",
+                text="➕ Создать подсказку",
                 callback_data=build_callback_data(
                     "admin",
-                    "menu",
+                    "create",
+                    "hint",
+                ),
+            )
+        ]
+    )
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=build_callback_data(
+                    "admin",
+                    "add",
+                    "hint-projects",
                     course_slug,
                 ),
             )
@@ -437,4 +467,83 @@ def get_subscription_confirm_keyboard(
 
     return InlineKeyboardMarkup(
         inline_keyboard=rows
+    )
+
+
+def get_project_creation_input_keyboard(
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="❌ Отменить создание",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "create",
+                        "project",
+                        "cancel",
+                    ),
+                )
+            ]
+        ]
+    )
+
+
+def get_project_creation_confirm_keyboard(
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Создать проект",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "create",
+                        "project",
+                        "confirm",
+                    ),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Отменить создание",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "create",
+                        "project",
+                        "cancel",
+                    ),
+                )
+            ],
+        ]
+    )
+
+
+def get_hint_creation_confirm_keyboard(
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Создать подсказку",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "create",
+                        "hint",
+                        "confirm",
+                    ),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Отменить создание",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "create",
+                        "hint",
+                        "cancel",
+                    ),
+                )
+            ],
+        ]
     )

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from sqlalchemy.exc import IntegrityError
+
 from app.database.repositories.attempt_repository import (
     AttemptRepository,
 )
@@ -29,6 +31,17 @@ ProjectStatus = Literal[
     "pending",
     "completed",
 ]
+
+
+class ProjectCreationError(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class CreatedProject:
+    id: int
+    number: int
+    title: str
 
 
 @dataclass(frozen=True)
@@ -266,4 +279,80 @@ async def get_project_card(
             telegram_channel_id=(
                 course.telegram_channel_id
             ),
+        )
+
+
+async def create_project(
+    course_slug: str,
+    title: str,
+    ai_requirements: str,
+) -> CreatedProject:
+    title = title.strip()
+    ai_requirements = ai_requirements.strip()
+
+    if not title:
+        raise ProjectCreationError(
+            "Название проекта не может быть пустым."
+        )
+
+    if len(title) > 255:
+        raise ProjectCreationError(
+            "Название проекта не должно превышать "
+            "255 символов."
+        )
+
+    if not ai_requirements:
+        raise ProjectCreationError(
+            "Обязательные критерии не могут быть пустыми."
+        )
+
+    async with async_session_factory() as session:
+        course_repository = CourseRepository(
+            session
+        )
+        project_repository = ProjectRepository(
+            session
+        )
+
+        course = await course_repository.get_by_slug(
+            course_slug
+        )
+
+        if course is None:
+            raise ProjectCreationError(
+                "Курс не найден или недоступен."
+            )
+
+        await project_repository.lock_creation(
+            course.id
+        )
+
+        number = (
+            await project_repository.get_next_number(
+                course.id
+            )
+        )
+
+        try:
+            project = await project_repository.create(
+                course_id=course.id,
+                number=number,
+                title=title,
+                ai_requirements=ai_requirements,
+            )
+
+            await session.commit()
+
+        except IntegrityError as error:
+            await session.rollback()
+
+            raise ProjectCreationError(
+                "Не удалось создать проект "
+                "из-за конфликта данных."
+            ) from error
+
+        return CreatedProject(
+            id=project.id,
+            number=project.number,
+            title=project.title,
         )

@@ -476,8 +476,11 @@ async def get_course_projects_for_schedule(
                 "Курс не найден."
             )
 
-        projects = await project_repository.get_by_course(
-            course.id
+        projects = (
+            await project_repository
+            .get_unpublished_by_course(
+                course.id
+            )
         )
 
         return [
@@ -489,6 +492,44 @@ async def get_course_projects_for_schedule(
             for project in projects
         ]
 
+
+async def get_course_projects_for_hint_schedule(
+    course_slug: str,
+) -> list[ScheduleProjectItem]:
+    async with async_session_factory() as session:
+        course_repository = CourseRepository(
+            session
+        )
+        project_repository = ProjectRepository(
+            session
+        )
+
+        course = await course_repository.get_by_slug(
+            course_slug
+        )
+
+        if course is None:
+            raise ScheduleError(
+                "Курс не найден."
+            )
+
+        projects = (
+            await project_repository
+            .get_available_for_hint_by_course(
+                course.id
+            )
+        )
+
+        return [
+            ScheduleProjectItem(
+                id=project.id,
+                number=project.number,
+                title=project.title,
+            )
+            for project in projects
+        ]
+
+
 async def get_project_hints_for_schedule(
     project_id: int,
 ) -> list[ScheduleHintItem]:
@@ -497,8 +538,11 @@ async def get_project_hints_for_schedule(
             session
         )
 
-        hints = await hint_repository.get_by_project(
-            project_id
+        hints = (
+            await hint_repository
+            .get_unpublished_by_project(
+                project_id
+            )
         )
 
         return [
