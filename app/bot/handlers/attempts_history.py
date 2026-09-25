@@ -286,4 +286,9 @@ async def attempt_feedback_handler(
         f"{escape(attempt.ai_feedback)}"
     )
 
+    await show_attempt_detail(
+        callback=callback,
+        attempt_id=attempt.id,
+    )
+
     await callback.answer()

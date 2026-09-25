@@ -15,6 +15,7 @@ ATTEMPT_ICONS = {
     "checking": "⏳",
     "failed": "❌",
     "passed": "✅",
+    "review": "🟠",
     "error": "⚠️",
 }
 

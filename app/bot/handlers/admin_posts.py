@@ -375,6 +375,22 @@ async def admin_reschedule_datetime_handler(
         await state.clear()
         return
 
+    data = await state.get_data()
+
+    post_id = data.get("post_id")
+    course_slug = data.get("course_slug")
+
+    if (
+        not isinstance(post_id, int)
+        or not isinstance(course_slug, str)
+    ):
+        await state.clear()
+
+        await message.answer(
+            "Контекст переноса публикации потерян."
+        )
+        return
+
     value = (message.text or "").strip()
 
     try:
@@ -387,7 +403,11 @@ async def admin_reschedule_datetime_handler(
         await message.answer(
             "❌ Неверный формат.\n\n"
             "Используй:\n"
-            "<code>05.09.2026 18:30</code>"
+            "<code>05.09.2026 18:30</code>",
+            reply_markup=get_admin_input_cancel_keyboard(
+                post_id=post_id,
+                course_slug=course_slug,
+            ),
         )
         return
 
@@ -395,7 +415,11 @@ async def admin_reschedule_datetime_handler(
         await message.answer(
             "❌ Такого местного времени "
             "не существует из-за перевода часов.\n\n"
-            "Выбери другое время."
+            "Выбери другое время.",
+            reply_markup=get_admin_input_cancel_keyboard(
+                post_id=post_id,
+                course_slug=course_slug,
+            ),
         )
         return
 
@@ -403,20 +427,23 @@ async def admin_reschedule_datetime_handler(
         await message.answer(
             "❌ Это время встречается дважды "
             "из-за перевода часов.\n\n"
-            "Выбери другое время."
+            "Выбери другое время.",
+            reply_markup=get_admin_input_cancel_keyboard(
+                post_id=post_id,
+                course_slug=course_slug,
+            ),
         )
         return
 
     if scheduled_at <= datetime.now(UTC):
         await message.answer(
-            "❌ Время должно быть в будущем."
+            "❌ Время должно быть в будущем.",
+            reply_markup=get_admin_input_cancel_keyboard(
+                post_id=post_id,
+                course_slug=course_slug,
+            ),
         )
         return
-
-    data = await state.get_data()
-
-    post_id = data["post_id"]
-    course_slug = data["course_slug"]
 
     try:
         await reschedule_post(
@@ -424,10 +451,7 @@ async def admin_reschedule_datetime_handler(
             scheduled_at=scheduled_at,
         )
 
-    except (
-        ScheduledPostNotFound,
-        ScheduledPostNotEditable,
-    ) as error:
+    except ScheduleError as error:
         await state.clear()
 
         await message.answer(

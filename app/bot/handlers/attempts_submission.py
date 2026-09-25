@@ -315,34 +315,40 @@ async def solution_file_handler(
 
     filename = document.file_name or ""
 
-    if not filename.lower().endswith(".py"):
-        await message.answer(
-            "❌ Нужен файл с расширением "
-            "<code>.py</code>."
-        )
-        return
-
-    if (
-        document.file_size is not None
-        and document.file_size
-        > MAX_SOLUTION_FILE_SIZE
-    ):
-        await message.answer(
-            "❌ Файл слишком большой.\n"
-            "Максимальный размер: 200 KB."
-        )
-        return
-
     data = await state.get_data()
 
     project_id = data.get("project_id")
 
-    if project_id is None:
+    if not isinstance(project_id, int):
         await state.clear()
 
         await message.answer(
             "Не удалось определить проект. "
             "Выбери его заново."
+        )
+        return
+
+    if not filename.lower().endswith(".py"):
+        await message.answer(
+            "❌ Нужен файл с расширением "
+            "<code>.py</code>.",
+            reply_markup=get_cancel_submission_keyboard(
+                project_id
+            ),
+        )
+        return
+
+    if (
+            document.file_size is not None
+            and document.file_size
+            > MAX_SOLUTION_FILE_SIZE
+    ):
+        await message.answer(
+            "❌ Файл слишком большой.\n"
+            "Максимальный размер: 200 KB.",
+            reply_markup=get_cancel_submission_keyboard(
+                project_id
+            ),
         )
         return
 
@@ -407,13 +413,19 @@ async def solution_file_handler(
         await message.answer(
             "❌ Не удалось прочитать файл.\n"
             "Сохрани его в UTF-8 "
-            "и отправь снова."
+            "и отправь снова.",
+            reply_markup=get_cancel_submission_keyboard(
+                project_id
+            ),
         )
         return
 
     if not source_code.strip():
         await message.answer(
-            "❌ Файл пустой."
+            "❌ Файл пустой.",
+            reply_markup=get_cancel_submission_keyboard(
+                project_id
+            ),
         )
         return
 
@@ -485,9 +497,26 @@ async def solution_file_handler(
 )
 async def wrong_solution_message_handler(
     message: Message,
+    state: FSMContext,
 ) -> None:
+    data = await state.get_data()
+
+    project_id = data.get("project_id")
+
+    if not isinstance(project_id, int):
+        await state.clear()
+
+        await message.answer(
+            "Не удалось определить проект. "
+            "Выбери его заново."
+        )
+        return
+
     await message.answer(
         "Отправь Python-файл "
         "<code>.py</code> или нажми "
-        "«Отмена»."
+        "«Отмена».",
+        reply_markup=get_cancel_submission_keyboard(
+            project_id
+        ),
     )

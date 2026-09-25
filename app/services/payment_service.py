@@ -52,6 +52,7 @@ class PaymentCheckoutView:
 
 @dataclass(frozen=True)
 class ProcessedPayment:
+    course_slug: str
     subscription_days: int
 
 async def create_payment(
@@ -188,6 +189,10 @@ async def _process_telegram_stars_payment(
             session
         )
 
+        course_repository = CourseRepository(
+            session
+        )
+
         payment = (
             await payment_repository
             .get_by_id_for_update(
@@ -217,6 +222,15 @@ async def _process_telegram_stars_payment(
         if user is None:
             raise PaymentError(
                 "Пользователь не найден."
+            )
+
+        course = await course_repository.get_by_id(
+            payment.course_id
+        )
+
+        if course is None:
+            raise PaymentError(
+                "Курс не найден."
             )
 
         if (
@@ -290,6 +304,7 @@ async def _process_telegram_stars_payment(
         await session.commit()
 
         return ProcessedPayment(
+            course_slug=course.slug,
             subscription_days=payment.subscription_days,
         )
 

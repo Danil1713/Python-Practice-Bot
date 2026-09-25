@@ -1,6 +1,7 @@
 from html import escape
 
 from aiogram import F, Router
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from app.bot.callbacks import (
@@ -31,9 +32,12 @@ router = Router()
 )
 async def admin_menu_handler(
     callback: CallbackQuery,
+    state: FSMContext,
 ) -> None:
     if not await check_admin(callback):
         return
+
+    await state.clear()
 
     course_slug = parse_callback_str(
         callback.data,

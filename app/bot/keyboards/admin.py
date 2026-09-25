@@ -328,7 +328,8 @@ def get_project_selection_keyboard(
 
 def get_hint_selection_keyboard(
     course_slug: str,
-    hints: list,
+    hints,
+    allow_create: bool = True,
 ) -> InlineKeyboardMarkup:
     rows = []
 
@@ -347,18 +348,19 @@ def get_hint_selection_keyboard(
             ]
         )
 
-    rows.append(
-        [
-            InlineKeyboardButton(
-                text="➕ Создать подсказку",
-                callback_data=build_callback_data(
-                    "admin",
-                    "create",
-                    "hint",
-                ),
-            )
-        ]
-    )
+    if allow_create:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="➕ Создать подсказку",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "create",
+                        "hint",
+                    ),
+                )
+            ]
+        )
 
     rows.append(
         [
@@ -402,6 +404,26 @@ def get_schedule_confirm_keyboard(
         ]
     )
 
+
+def get_admin_add_cancel_keyboard(
+    course_slug: str,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="❌ Отмена",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "menu",
+                        course_slug,
+                    ),
+                )
+            ]
+        ]
+    )
+
+
 def get_subscription_users_keyboard(
     users: list,
 ) -> InlineKeyboardMarkup:
@@ -432,10 +454,22 @@ def get_subscription_users_keyboard(
             ]
         )
 
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="❌ Отмена",
+                callback_data=build_callback_data(
+                    "admin",
+                    "sub",
+                    "cancel",
+                ),
+            )
+        ]
+    )
+
     return InlineKeyboardMarkup(
         inline_keyboard=rows
     )
-
 
 def get_subscription_confirm_keyboard(
     show_confirm: bool = True,

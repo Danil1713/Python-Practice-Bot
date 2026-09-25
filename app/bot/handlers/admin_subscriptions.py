@@ -81,6 +81,11 @@ async def admin_subscriptions_handler(
             "<code>123456789</code>\n"
             "<code>@username</code>"
         ),
+        reply_markup=(
+            get_subscription_confirm_keyboard(
+                show_confirm=False
+            )
+        ),
     )
 
     await callback.answer()
@@ -107,7 +112,12 @@ async def admin_subscription_search_handler(
     if not value:
         await message.answer(
             "❌ Введи Telegram ID "
-            "или username."
+            "или username.",
+            reply_markup=(
+                get_subscription_confirm_keyboard(
+                    show_confirm=False
+                )
+            ),
         )
         return
 
@@ -213,6 +223,11 @@ async def admin_subscription_user_handler(
             "Отправь число, например:\n"
             "<code>30</code>"
         ),
+        reply_markup=(
+            get_subscription_confirm_keyboard(
+                show_confirm=False
+            )
+        ),
     )
 
     await callback.answer()
@@ -241,14 +256,24 @@ async def admin_subscription_days_handler(
 
     except ValueError:
         await message.answer(
-            "❌ Введи целое число."
+            "❌ Введи целое число.",
+            reply_markup=(
+                get_subscription_confirm_keyboard(
+                    show_confirm=False
+                )
+            ),
         )
         return
 
     if days <= 0:
         await message.answer(
             "❌ Количество дней должно "
-            "быть больше 0."
+            "быть больше 0.",
+            reply_markup=(
+                get_subscription_confirm_keyboard(
+                    show_confirm=False
+                )
+            ),
         )
         return
 

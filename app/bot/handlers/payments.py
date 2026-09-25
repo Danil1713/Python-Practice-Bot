@@ -247,9 +247,12 @@ async def successful_payment_handler(
         )
 
         await message.answer(
-            "⚠️ Оплата получена, но возникла "
-            "ошибка при активации подписки.\n\n"
-            "Обратись к администратору."
+            text=(
+                "⚠️ Оплата получена, но возникла "
+                "ошибка при активации подписки.\n\n"
+                "Обратись к администратору."
+            ),
+            reply_markup=get_payment_support_keyboard(),
         )
 
         return
@@ -262,7 +265,11 @@ async def successful_payment_handler(
             "✅ <b>Оплата прошла успешно!</b>\n\n"
             "Подписка активирована "
             f"на {processed.subscription_days} дней."
-        )
+        ),
+        reply_markup=get_subscription_keyboard(
+            course_slug=processed.course_slug,
+            can_pay=False,
+        ),
     )
 
 @router.callback_query(

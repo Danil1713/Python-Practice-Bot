@@ -1,5 +1,6 @@
 from aiogram import Router
 from aiogram.filters import CommandStart
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from app.bot.keyboards.courses import (
@@ -18,11 +19,14 @@ router = Router()
 @router.message(CommandStart())
 async def start_handler(
     message: Message,
+    state: FSMContext,
 ) -> None:
     telegram_user = message.from_user
 
     if telegram_user is None:
         return
+
+    await state.clear()
 
     await register_or_update_user(
         telegram_id=telegram_user.id,

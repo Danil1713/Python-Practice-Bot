@@ -25,6 +25,22 @@ HINT_XP_AFTER_PUBLISH_BY_NUMBER = {
 }
 
 
+async def can_create_hint(
+    project_id: int,
+) -> bool:
+    async with async_session_factory() as session:
+        repository = HintRepository(session)
+
+        next_number = await repository.get_next_number(
+            project_id
+        )
+
+        return (
+            next_number
+            in HINT_XP_AFTER_PUBLISH_BY_NUMBER
+        )
+
+
 @dataclass(frozen=True)
 class HintListItem:
     id: int

@@ -41,6 +41,13 @@ async def subscription_handler(
         course_slug=course_slug,
     )
 
+    if view is None:
+        await callback.answer(
+            "Не удалось получить подписку.",
+            show_alert=True,
+        )
+        return
+
     course_title = escape(
         view.course_title
     )
@@ -48,13 +55,6 @@ async def subscription_handler(
     plan = get_subscription_plan(
         course_slug
     )
-
-    if view is None:
-        await callback.answer(
-            "Не удалось получить подписку.",
-            show_alert=True,
-        )
-        return
 
     if not view.requires_subscription:
         text = (

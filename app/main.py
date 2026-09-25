@@ -82,10 +82,10 @@ async def main() -> None:
         global_error_handler
     )
 
-    dispatcher.include_router (payments_router)
+    dispatcher.include_router(payments_router)
     dispatcher.include_router(subscription_router)
-    dispatcher.include_router(admin_router)
     dispatcher.include_router(start_router)
+    dispatcher.include_router(admin_router)
     dispatcher.include_router(courses_router)
     dispatcher.include_router(attempts_router)
     dispatcher.include_router(projects_router)
