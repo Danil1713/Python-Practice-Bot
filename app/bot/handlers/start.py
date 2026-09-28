@@ -10,6 +10,7 @@ from app.services.course_service import (
     get_active_courses,
 )
 from app.services.user_service import (
+    clear_current_course,
     register_or_update_user,
 )
 
@@ -32,6 +33,10 @@ async def start_handler(
         telegram_id=telegram_user.id,
         username=telegram_user.username,
         first_name=telegram_user.first_name,
+    )
+
+    await clear_current_course(
+        telegram_user.id
     )
 
     courses = await get_active_courses()

@@ -50,6 +50,19 @@ def get_admin_menu_keyboard(
             ]
         )
 
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="💳 Платежи на проверке",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "payreview",
+                        course_slug,
+                    ),
+                )
+            ]
+        )
+
     rows.append(
         [
             InlineKeyboardButton(
@@ -144,23 +157,28 @@ def get_schedule_keyboard(
         inline_keyboard=rows
     )
 
+
 def get_scheduled_post_keyboard(
     post_id: int,
     course_slug: str,
+    status: str,
 ) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🚀 Опубликовать сейчас",
-                    callback_data=build_callback_data(
-                        "admin",
-                        "publish",
-                        post_id,
-                        course_slug,
-                    ),
-                )
-            ],
+    rows = [
+        [
+            InlineKeyboardButton(
+                text="🚀 Опубликовать сейчас",
+                callback_data=build_callback_data(
+                    "admin",
+                    "publish",
+                    post_id,
+                    course_slug,
+                ),
+            )
+        ]
+    ]
+
+    if status == "scheduled":
+        rows.append(
             [
                 InlineKeyboardButton(
                     text="🕒 Перенести",
@@ -180,18 +198,39 @@ def get_scheduled_post_keyboard(
                         course_slug,
                     ),
                 ),
-            ],
+            ]
+        )
+
+    elif status == "failed":
+        rows.append(
             [
                 InlineKeyboardButton(
-                    text="⬅️ Назад",
+                    text="🕒 Перенести",
                     callback_data=build_callback_data(
                         "admin",
-                        "schedule",
+                        "reschedule",
+                        post_id,
                         course_slug,
                     ),
                 )
-            ],
+            ]
+        )
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=build_callback_data(
+                    "admin",
+                    "schedule",
+                    course_slug,
+                ),
+            )
         ]
+    )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=rows
     )
 
 def get_admin_input_cancel_keyboard(
@@ -576,6 +615,89 @@ def get_hint_creation_confirm_keyboard(
                         "create",
                         "hint",
                         "cancel",
+                    ),
+                )
+            ],
+        ]
+    )
+
+
+def get_review_payments_keyboard(
+    course_slug: str,
+    payments: list,
+) -> InlineKeyboardMarkup:
+    rows = []
+
+    for payment in payments:
+        if payment.username:
+            user_label = (
+                f"@{payment.username}"
+            )
+        else:
+            user_label = str(
+                payment.telegram_user_id
+            )
+
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=(
+                        f"⚠️ #{payment.id} — "
+                        f"{user_label}"
+                    ),
+                    callback_data=build_callback_data(
+                        "admin",
+                        "payreview-item",
+                        payment.id,
+                        course_slug,
+                    ),
+                )
+            ]
+        )
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=build_callback_data(
+                    "admin",
+                    "menu",
+                    course_slug,
+                ),
+            )
+        ]
+    )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=rows
+    )
+
+
+def get_review_payment_keyboard(
+    *,
+    payment_id: int,
+    course_slug: str,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🔄 Повторить активацию",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "payreview-retry",
+                        payment_id,
+                        course_slug,
+                    ),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "payreview",
+                        course_slug,
                     ),
                 )
             ],

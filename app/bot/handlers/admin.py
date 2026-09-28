@@ -10,6 +10,9 @@ from app.bot.callbacks import (
 from app.bot.handlers.admin_common import (
     check_admin,
 )
+from app.bot.handlers.admin_payments import (
+    router as admin_payments_router,
+)
 from app.bot.handlers.admin_post_creation import (
     router as admin_post_creation_router,
 )
@@ -89,4 +92,8 @@ router.include_router(
 
 router.include_router(
     admin_subscriptions_router
+)
+
+router.include_router(
+    admin_payments_router
 )

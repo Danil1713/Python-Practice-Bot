@@ -9,7 +9,11 @@ from aiogram.types import (
 
 from app.bot.callbacks import (
     parse_callback_int,
+    parse_callback_int_str,
     parse_callback_str,
+)
+from app.bot.handlers.course_context import (
+    check_current_course,
 )
 from app.bot.keyboards.projects import (
     get_projects_keyboard,
@@ -31,26 +35,22 @@ from app.services.telegram_link_service import (
 router = Router()
 
 
-@router.callback_query(
-    F.data.startswith("menu:projects:")
-)
-async def projects_list_handler(
+async def show_projects_page(
+    *,
     callback: CallbackQuery,
+    course_slug: str,
+    page: int,
 ) -> None:
-    course_slug = parse_callback_str(
-        callback.data,
-        "menu:projects",
-    )
-
-    if course_slug is None:
-        await callback.answer(
-            "Некорректная команда.",
-            show_alert=True,
-        )
+    if not await check_current_course(
+        callback,
+        course_slug,
+    ):
         return
 
     view = await get_course_projects(
-        telegram_user_id=callback.from_user.id,
+        telegram_user_id=(
+            callback.from_user.id
+        ),
         course_slug=course_slug,
     )
 
@@ -81,7 +81,69 @@ async def projects_list_handler(
         reply_markup=get_projects_keyboard(
             projects=view.projects,
             course_slug=view.course_slug,
+            page=page,
         ),
+    )
+
+
+@router.callback_query(
+    F.data.startswith("menu:projects:")
+)
+async def projects_list_handler(
+    callback: CallbackQuery,
+) -> None:
+    course_slug = parse_callback_str(
+        callback.data,
+        "menu:projects",
+    )
+
+    if course_slug is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    await show_projects_page(
+        callback=callback,
+        course_slug=course_slug,
+        page=0,
+    )
+
+    await callback.answer()
+
+
+@router.callback_query(
+    F.data.startswith("projects:page:")
+)
+async def projects_page_handler(
+    callback: CallbackQuery,
+) -> None:
+    parsed = parse_callback_int_str(
+        callback.data,
+        "projects:page",
+    )
+
+    if parsed is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    page, course_slug = parsed
+
+    if page < 0:
+        await callback.answer(
+            "Некорректная страница.",
+            show_alert=True,
+        )
+        return
+
+    await show_projects_page(
+        callback=callback,
+        course_slug=course_slug,
+        page=page,
     )
 
     await callback.answer()
@@ -115,6 +177,12 @@ async def project_card_handler(
             "Проект не найден.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+            callback,
+            project.course_slug,
+    ):
         return
 
     if project.status == "locked":
@@ -161,6 +229,8 @@ async def project_task_handler(
         )
         return
 
+
+
     project = await get_project_card(
         telegram_user_id=callback.from_user.id,
         project_id=project_id,
@@ -171,6 +241,12 @@ async def project_task_handler(
             "Проект не найден.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+            callback,
+            project.course_slug,
+    ):
         return
 
     active = await has_active_subscription(

@@ -200,16 +200,40 @@ async def successful_payment_handler(
     if successful_payment is None:
         return
 
-    payload = successful_payment.invoice_payload
+    payload = (
+        successful_payment.invoice_payload
+    )
 
     payment_id = parse_subscription_payload(
         payload
     )
 
     if payment_id is None:
-        logger.warning(
-            "Invalid Stars payment payload: %r",
+        logger.error(
+            "Invalid Stars successful payment "
+            "payload=%r "
+            "telegram_user_id=%s "
+            "charge_id=%s",
             payload,
+            message.from_user.id,
+            (
+                successful_payment
+                .telegram_payment_charge_id
+            ),
+        )
+
+        await message.answer(
+            text=(
+                "⚠️ Оплата получена, но не удалось "
+                "автоматически определить платёж.\n\n"
+                "Stars уже могли быть списаны. "
+                "Обратись в поддержку, чтобы "
+                "проверить платёж и активировать "
+                "подписку."
+            ),
+            reply_markup=(
+                get_payment_support_keyboard()
+            ),
         )
         return
 
@@ -217,18 +241,21 @@ async def successful_payment_handler(
         processed = (
             await process_telegram_stars_payment(
                 payment_id=payment_id,
-                telegram_user_id=message.from_user.id,
+                telegram_user_id=(
+                    message.from_user.id
+                ),
                 telegram_payment_charge_id=(
                     successful_payment
                     .telegram_payment_charge_id
                 ),
-                currency=successful_payment.currency,
+                currency=(
+                    successful_payment.currency
+                ),
                 total_amount=(
                     successful_payment.total_amount
                 ),
             )
         )
-
 
     except PaymentError as error:
         logger.error(
@@ -250,14 +277,14 @@ async def successful_payment_handler(
             text=(
                 "⚠️ Оплата получена, но возникла "
                 "ошибка при активации подписки.\n\n"
-                "Обратись к администратору."
+                "Stars уже могли быть списаны. "
+                "Обратись в поддержку — платёж "
+                "нужно проверить."
             ),
-            reply_markup=get_payment_support_keyboard(),
+            reply_markup=(
+                get_payment_support_keyboard()
+            ),
         )
-
-        return
-
-    if processed is None:
         return
 
     await message.answer(
@@ -296,6 +323,7 @@ async def cancel_stars_payment_handler(
         cancelled = await cancel_payment(
             payment_id=payment_id,
             telegram_user_id=callback.from_user.id,
+            course_slug=course_slug,
         )
 
     except PaymentError as error:

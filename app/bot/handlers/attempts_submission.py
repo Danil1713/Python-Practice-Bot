@@ -1,3 +1,4 @@
+import logging
 from html import escape
 from io import BytesIO
 
@@ -19,11 +20,16 @@ from app.bot.views.project_card import (
     render_project_card,
 )
 from app.exceptions.attempts import (
+    AttemptAILimitReached,
     AttemptAlreadyPending,
     AttemptError,
 )
+from app.services.ai_check_limit_service import (
+    get_ai_check_usage,
+)
 from app.services.attempt_service import (
     create_attempt,
+    mark_attempt_setup_error,
     save_attempt_status_message,
 )
 from app.services.project_service import (
@@ -38,6 +44,8 @@ from app.services.user_service import (
 )
 
 router = Router()
+
+logger = logging.getLogger(__name__)
 
 
 MAX_SOLUTION_FILE_SIZE = 200 * 1024
@@ -88,6 +96,32 @@ async def ai_review_consent_handler(
         )
         return
 
+    usage = await get_ai_check_usage(
+        telegram_user_id=callback.from_user.id,
+        project_id=project.id,
+    )
+
+    if usage is None:
+        await callback.answer(
+            "Не удалось определить "
+            "лимит проверок.",
+            show_alert=True,
+        )
+        return
+
+    if usage.exhausted:
+        await state.clear()
+
+        await callback.answer(
+            (
+                "🤖 Лимит AI-проверок "
+                "для этого Project исчерпан: "
+                f"{usage.used} из {usage.limit}."
+            ),
+            show_alert=True,
+        )
+        return
+
     accepted = await accept_ai_review_consent(
         callback.from_user.id
     )
@@ -114,7 +148,9 @@ async def ai_review_consent_handler(
             f"{escape(project.title)}</b>\n\n"
             "Отправь Python-файл "
             "с решением.\n\n"
-            "Формат: <code>.py</code>"
+            "Формат: <code>.py</code>\n\n"
+            f"🤖 AI-проверки: "
+            f"<b>{usage.used} / {usage.limit}</b>"
         ),
         reply_markup=(
             get_cancel_submission_keyboard(
@@ -169,6 +205,30 @@ async def start_submission_handler(
         await callback.answer(
             "⏳ У тебя уже есть решение "
             "на проверке.",
+            show_alert=True,
+        )
+        return
+
+    usage = await get_ai_check_usage(
+        telegram_user_id=callback.from_user.id,
+        project_id=project.id,
+    )
+
+    if usage is None:
+        await callback.answer(
+            "Не удалось определить "
+            "лимит проверок.",
+            show_alert=True,
+        )
+        return
+
+    if usage.exhausted:
+        await callback.answer(
+            (
+                "🤖 Лимит AI-проверок "
+                "для этого Project исчерпан: "
+                f"{usage.used} из {usage.limit}."
+            ),
             show_alert=True,
         )
         return
@@ -234,7 +294,9 @@ async def start_submission_handler(
             f"{escape(project.title)}</b>\n\n"
             "Отправь Python-файл "
             "с решением.\n\n"
-            "Формат: <code>.py</code>"
+            "Формат: <code>.py</code>\n\n"
+            f"🤖 AI-проверки: "
+            f"<b>{usage.used} / {usage.limit}</b>"
         ),
         reply_markup=(
             get_cancel_submission_keyboard(
@@ -397,12 +459,48 @@ async def solution_file_handler(
 
     buffer = BytesIO()
 
-    await bot.download(
-        document,
-        destination=buffer,
-    )
+    try:
+        await bot.download(
+            document,
+            destination=buffer,
+        )
+
+    except Exception:
+        logger.exception(
+            "Could not download solution file "
+            "telegram_user_id=%s "
+            "project_id=%s "
+            "file_id=%s",
+            message.from_user.id,
+            project_id,
+            document.file_id,
+        )
+
+        await message.answer(
+            "⚠️ Не удалось скачать файл.\n\n"
+            "Попробуй отправить его ещё раз."
+        )
+        return
 
     raw_code = buffer.getvalue()
+
+    if len(raw_code) > MAX_SOLUTION_FILE_SIZE:
+        logger.warning(
+            "Downloaded solution file exceeds "
+            "size limit "
+            "telegram_user_id=%s "
+            "project_id=%s "
+            "size=%s",
+            message.from_user.id,
+            project_id,
+            len(raw_code),
+        )
+
+        await message.answer(
+            "❌ Файл слишком большой.\n"
+            "Максимальный размер: 200 KB."
+        )
+        return
 
     try:
         source_code = raw_code.decode(
@@ -439,6 +537,16 @@ async def solution_file_handler(
             source_code=source_code,
         )
 
+    except AttemptAILimitReached:
+        await state.clear()
+
+        await message.answer(
+            "🤖 Лимит AI-проверок "
+            "для этого Project исчерпан: "
+            "<b>5 из 5</b>."
+        )
+        return
+
     except AttemptAlreadyPending:
         await state.clear()
 
@@ -456,14 +564,28 @@ async def solution_file_handler(
         )
         return
 
-    await state.clear()
-
     project = await get_project_card(
         telegram_user_id=message.from_user.id,
         project_id=project_id,
     )
 
     if project is None:
+        await mark_attempt_setup_error(
+            attempt_id=attempt.id,
+            error_message=(
+                "Не удалось подготовить "
+                "проверку решения: "
+                "Project не найден."
+            ),
+        )
+
+        await state.clear()
+
+        await message.answer(
+            "❌ Не удалось подготовить "
+            "проверку решения.\n\n"
+            "Попробуй отправить файл заново."
+        )
         return
 
     project_text, project_keyboard = (
@@ -473,23 +595,84 @@ async def solution_file_handler(
         )
     )
 
-    status_message = await message.answer(
-        text=(
-            "✅ <b>Решение получено.</b>\n\n"
-            f"Попытка №{attempt.number}\n\n"
-            "Результат проверки появится "
-            "в разделе "
-            "<b>«Мои попытки»</b>.\n\n"
-            f"{project_text}"
-        ),
-        reply_markup=project_keyboard,
-    )
+    status_message = None
 
-    await save_attempt_status_message(
-        attempt_id=attempt.id,
-        chat_id=message.chat.id,
-        message_id=status_message.message_id,
-    )
+    try:
+        status_message = await message.answer(
+            text=(
+                "✅ <b>Решение получено.</b>\n\n"
+                f"Попытка №{attempt.number}\n\n"
+                "Результат проверки появится "
+                "в разделе "
+                "<b>«Мои попытки»</b>.\n\n"
+                f"{project_text}"
+            ),
+            reply_markup=project_keyboard,
+        )
+
+        await save_attempt_status_message(
+            attempt_id=attempt.id,
+            chat_id=message.chat.id,
+            message_id=status_message.message_id,
+        )
+
+    except Exception:
+        logger.exception(
+            "Failed to prepare attempt "
+            "status message "
+            "attempt_id=%s "
+            "telegram_user_id=%s",
+            attempt.id,
+            message.from_user.id,
+        )
+
+        try:
+            await mark_attempt_setup_error(
+                attempt_id=attempt.id,
+                error_message=(
+                    "Не удалось подготовить "
+                    "Telegram-сообщение "
+                    "для результата проверки."
+                ),
+            )
+
+        except Exception:
+            logger.exception(
+                "Failed to mark attempt "
+                "setup error "
+                "attempt_id=%s",
+                attempt.id,
+            )
+
+        if status_message is not None:
+            try:
+                await status_message.edit_text(
+                    text=(
+                        "⚠️ Не удалось поставить "
+                        "решение в очередь "
+                        "на проверку.\n\n"
+                        "Отправь файл ещё раз "
+                        "или нажми «Отмена»."
+                    ),
+                    reply_markup=(
+                        get_cancel_submission_keyboard(
+                            project_id
+                        )
+                    ),
+                )
+
+            except Exception:
+                logger.exception(
+                    "Failed to update attempt "
+                    "status message after "
+                    "setup error "
+                    "attempt_id=%s",
+                    attempt.id,
+                )
+
+        return
+
+    await state.clear()
 
 
 @router.message(

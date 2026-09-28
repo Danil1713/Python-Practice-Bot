@@ -6,6 +6,9 @@ from aiogram.types import CallbackQuery
 from app.bot.callbacks import (
     parse_callback_str,
 )
+from app.bot.handlers.course_context import (
+    check_current_course,
+)
 from app.bot.keyboards.main_menu import (
     get_back_to_menu_keyboard,
     get_main_menu_keyboard,
@@ -38,6 +41,12 @@ async def menu_section_handler(
             "Некорректная команда.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+            callback,
+            course_slug,
+    ):
         return
 
     course = await get_course_by_slug(
@@ -90,6 +99,12 @@ async def back_to_menu_handler(
             "Некорректная команда.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+            callback,
+            course_slug,
+    ):
         return
 
     course = await get_course_by_slug(

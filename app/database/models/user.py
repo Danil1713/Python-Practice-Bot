@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, String, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -50,4 +50,13 @@ class User(Base):
     ai_review_consent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+
+    current_course_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "courses.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
     )

@@ -57,6 +57,24 @@ class FakeFSMContext:
         self.current_state = None
 
 
+async def mark_project_published(
+    project_id: int,
+) -> None:
+    async with async_session_factory() as session:
+        project = await session.get(
+            Project,
+            project_id,
+        )
+
+        assert project is not None
+
+        project.published_at = datetime.now(
+            timezone.utc
+        )
+
+        await session.commit()
+
+
 @pytest.mark.asyncio
 async def test_unpublished_projects_only(
     db_session,
@@ -136,6 +154,9 @@ async def test_project_without_hints_is_available_for_hint(
         title="Project Without Hints",
         max_xp=100,
         ai_requirements="Requirements",
+        published_at=datetime.now(
+            timezone.utc
+        ),
     )
 
     db_session.add(project)
@@ -177,9 +198,12 @@ async def test_project_with_unpublished_hint_is_available(
     project = Project(
         course_id=course.id,
         number=1,
-        title="Project",
+        title="Project Without Hints",
         max_xp=100,
         ai_requirements="Requirements",
+        published_at=datetime.now(
+            timezone.utc
+        ),
     )
 
     db_session.add(project)
@@ -627,6 +651,10 @@ async def test_create_hint_assigns_number_and_xp():
         ai_requirements="Requirements",
     )
 
+    await mark_project_published(
+        project.id
+    )
+
     first = await create_hint(
         course_slug="service_hint_creation",
         project_id=project.id,
@@ -787,6 +815,10 @@ async def test_concurrent_hint_creation_gets_unique_numbers():
         course_slug="concurrent_hint_creation",
         title="Project",
         ai_requirements="Requirements",
+    )
+
+    await mark_project_published(
+        project.id
     )
 
     first, second = await asyncio.gather(

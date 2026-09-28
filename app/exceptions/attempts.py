@@ -16,3 +16,7 @@ class AttemptProjectLocked(AttemptError):
 
 class AttemptAlreadyPending(AttemptError):
     pass
+
+
+class AttemptAILimitReached(AttemptError):
+    pass

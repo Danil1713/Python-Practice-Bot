@@ -25,6 +25,8 @@ from app.services.admin_service import (
     is_admin,
 )
 from app.services.admin_subscription_service import (
+    MAX_ADMIN_SUBSCRIPTION_DAYS,
+    AdminSubscriptionError,
     activate_or_extend_subscription_by_slug,
     search_users,
 )
@@ -208,6 +210,22 @@ async def admin_subscription_user_handler(
 
     data = await state.get_data()
 
+    course_slug = data.get(
+        "subscription_course_slug"
+    )
+
+    if not isinstance(
+            course_slug,
+            str,
+    ):
+        await state.clear()
+
+        await callback.answer(
+            "Контекст выдачи подписки потерян.",
+            show_alert=True,
+        )
+        return
+
     await state.set_state(
         AdminScheduleStates
         .waiting_for_subscription_days
@@ -218,7 +236,7 @@ async def admin_subscription_user_handler(
             "📅 <b>На сколько дней "
             "выдать подписку?</b>\n\n"
             f"Курс: <b>"
-            f"{escape(data['subscription_course_slug'])}"
+            f"{escape(course_slug)}"
             f"</b>\n\n"
             "Отправь число, например:\n"
             "<code>30</code>"
@@ -277,6 +295,21 @@ async def admin_subscription_days_handler(
         )
         return
 
+    if days > MAX_ADMIN_SUBSCRIPTION_DAYS:
+        await message.answer(
+            text=(
+                    "❌ Нельзя выдать подписку "
+                    f"больше чем на "
+                    f"{MAX_ADMIN_SUBSCRIPTION_DAYS} дней."
+            ),
+            reply_markup=(
+                get_subscription_confirm_keyboard(
+                    show_confirm=False
+                )
+            ),
+        )
+        return
+
     await state.update_data(
         subscription_days=days,
         subscription_idempotency_key=(
@@ -285,6 +318,24 @@ async def admin_subscription_days_handler(
     )
 
     data = await state.get_data()
+
+    course_slug = data.get(
+        "subscription_course_slug"
+    )
+    user_id = data.get(
+        "subscription_user_id"
+    )
+
+    if (
+            not isinstance(course_slug, str)
+            or not isinstance(user_id, int)
+    ):
+        await state.clear()
+
+        await message.answer(
+            "Контекст выдачи подписки потерян."
+        )
+        return
 
     await state.set_state(
         AdminScheduleStates
@@ -295,7 +346,7 @@ async def admin_subscription_days_handler(
         text=(
             "📋 <b>Подтверждение</b>\n\n"
             f"Курс: <b>"
-            f"{escape(data['subscription_course_slug'])}"
+            f"{escape(course_slug)}"
             f"</b>\n"
             f"Срок: <b>{days} дней</b>\n\n"
             "Выдать / продлить подписку?"
@@ -307,8 +358,7 @@ async def admin_subscription_days_handler(
 
 
 @router.callback_query(
-    AdminScheduleStates
-    .confirming_subscription,
+    AdminScheduleStates.confirming_subscription,
     F.data == "admin:sub:confirm",
 )
 async def admin_subscription_confirm_handler(
@@ -320,41 +370,61 @@ async def admin_subscription_confirm_handler(
 
     data = await state.get_data()
 
+    user_id = data.get(
+        "subscription_user_id"
+    )
+    course_slug = data.get(
+        "subscription_course_slug"
+    )
+    days = data.get(
+        "subscription_days"
+    )
     idempotency_key = data.get(
         "subscription_idempotency_key"
     )
 
-    if not idempotency_key:
+    if (
+        not isinstance(user_id, int)
+        or not isinstance(course_slug, str)
+        or not isinstance(days, int)
+        or days <= 0
+        or days > MAX_ADMIN_SUBSCRIPTION_DAYS
+        or not isinstance(
+            idempotency_key,
+            str,
+        )
+        or not idempotency_key
+    ):
+        await state.clear()
+
         await callback.answer(
             "Операция устарела. "
-            "Начните выдачу подписки заново.",
+            "Начни выдачу подписки заново.",
             show_alert=True,
         )
         return
 
-    result = (
-        await activate_or_extend_subscription_by_slug(
-            user_id=data[
-                "subscription_user_id"
-            ],
-            course_slug=data[
-                "subscription_course_slug"
-            ],
-            days=data[
-                "subscription_days"
-            ],
-            actor_telegram_id=(
-                callback.from_user.id
-            ),
-            idempotency_key=(
-                idempotency_key
-            ),
+    try:
+        result = (
+            await activate_or_extend_subscription_by_slug(
+                user_id=user_id,
+                course_slug=course_slug,
+                days=days,
+                actor_telegram_id=(
+                    callback.from_user.id
+                ),
+                idempotency_key=idempotency_key,
+            )
         )
-    )
 
-    course_slug = data[
-        "subscription_course_slug"
-    ]
+    except AdminSubscriptionError as error:
+        await state.clear()
+
+        await callback.answer(
+            str(error),
+            show_alert=True,
+        )
+        return
 
     await state.clear()
 
@@ -371,8 +441,7 @@ async def admin_subscription_confirm_handler(
 
     await callback.message.edit_text(
         text=(
-            "✅ <b>Подписка "
-            "активирована.</b>\n\n"
+            "✅ <b>Подписка активирована.</b>\n\n"
             f"Курс: <b>"
             f"{escape(course.title)}"
             f"</b>\n"
@@ -382,13 +451,11 @@ async def admin_subscription_confirm_handler(
             "Можно продолжить работу "
             "в админ-панели."
         ),
-        reply_markup=(
-            get_admin_menu_keyboard(
-                course_slug=course.slug,
-                requires_subscription=(
-                    course.requires_subscription
-                ),
-            )
+        reply_markup=get_admin_menu_keyboard(
+            course_slug=course.slug,
+            requires_subscription=(
+                course.requires_subscription
+            ),
         ),
     )
 

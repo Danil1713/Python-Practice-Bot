@@ -6,6 +6,9 @@ from aiogram.types import CallbackQuery
 from app.bot.callbacks import (
     parse_callback_str,
 )
+from app.bot.handlers.course_context import (
+    check_current_course,
+)
 from app.bot.keyboards.xp import (
     get_xp_keyboard,
 )
@@ -32,6 +35,12 @@ async def xp_handler(
             "Некорректная команда.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+            callback,
+            course_slug,
+    ):
         return
 
     view = await get_course_xp(

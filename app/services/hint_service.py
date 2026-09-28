@@ -29,10 +29,27 @@ async def can_create_hint(
     project_id: int,
 ) -> bool:
     async with async_session_factory() as session:
-        repository = HintRepository(session)
+        project_repository = ProjectRepository(
+            session
+        )
+        hint_repository = HintRepository(
+            session
+        )
 
-        next_number = await repository.get_next_number(
+        project = await project_repository.get_by_id(
             project_id
+        )
+
+        if (
+            project is None
+            or project.published_at is None
+        ):
+            return False
+
+        next_number = (
+            await hint_repository.get_next_number(
+                project_id
+            )
         )
 
         return (
@@ -238,6 +255,11 @@ async def create_hint(
         if project.course_id != course.id:
             raise HintCreationError(
                 "Проект не относится к текущему курсу."
+            )
+
+        if project.published_at is None:
+            raise HintCreationError(
+                "Сначала опубликуй Project."
             )
 
         await hint_repository.lock_creation(

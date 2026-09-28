@@ -6,11 +6,17 @@ from aiogram.types import CallbackQuery
 from app.bot.callbacks import (
     parse_callback_str,
 )
+from app.bot.handlers.course_context import (
+    check_current_course,
+)
 from app.bot.keyboards.progress import (
     get_progress_keyboard,
 )
 from app.services.progress_service import (
     get_course_progress,
+)
+from app.utils.telegram_text import (
+    split_telegram_lines,
 )
 
 router = Router()
@@ -39,6 +45,12 @@ async def progress_handler(
             "Некорректная команда.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+            callback,
+            course_slug,
+    ):
         return
 
     view = await get_course_progress(
@@ -85,11 +97,40 @@ async def progress_handler(
             f"{escape(project.title)}"
         )
 
-    await callback.message.edit_text(
-        text="\n".join(lines),
-        reply_markup=get_progress_keyboard(
-            view.course_slug
-        ),
+    chunks = split_telegram_lines(
+        lines
     )
+
+    if not chunks:
+        await callback.answer(
+            "Не удалось сформировать прогресс.",
+            show_alert=True,
+        )
+        return
+
+    if len(chunks) == 1:
+        await callback.message.edit_text(
+            text=chunks[0],
+            reply_markup=get_progress_keyboard(
+                view.course_slug
+            ),
+        )
+
+    else:
+        await callback.message.edit_text(
+            text=chunks[0]
+        )
+
+        for chunk in chunks[1:-1]:
+            await callback.message.answer(
+                chunk
+            )
+
+        await callback.message.answer(
+            chunks[-1],
+            reply_markup=get_progress_keyboard(
+                view.course_slug
+            ),
+        )
 
     await callback.answer()

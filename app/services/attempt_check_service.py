@@ -27,6 +27,9 @@ from app.database.repositories.xp_repository import (
 from app.database.session import (
     async_session_factory,
 )
+from app.services.ai_check_limit_service import (
+    MAX_AI_CHECKS_PER_PROJECT,
+)
 from app.services.ai_service import (
     AI_POLICY_VERSION,
     CodeReviewResult,
@@ -583,6 +586,82 @@ async def check_attempt(
                 ai_policy_version_used = (
                     AI_POLICY_VERSION
                 )
+
+                ai_checks_used = (
+                    await attempt_repository
+                    .count_ai_checks(
+                        user_id=attempt.user_id,
+                        project_id=attempt.project_id,
+                    )
+                )
+
+                if (
+                        ai_checks_used
+                        >= MAX_AI_CHECKS_PER_PROJECT
+                ):
+                    await attempt_repository.mark_error(
+                        attempt,
+                        "AI check limit reached",
+                    )
+
+                    await session.commit()
+
+                    course_repository = CourseRepository(
+                        session
+                    )
+
+                    course = await course_repository.get_by_id(
+                        project.course_id
+                    )
+
+                    if (
+                            course is not None
+                            and attempt.status_chat_id is not None
+                            and attempt.status_message_id is not None
+                    ):
+                        active_subscription = (
+                            await has_active_subscription(
+                                telegram_user_id=telegram_user_id,
+                                course_slug=course.slug,
+                            )
+                        )
+
+                        await bot.edit_message_text(
+                            chat_id=attempt.status_chat_id,
+                            message_id=attempt.status_message_id,
+                            text=(
+                                "🤖 <b>Проверка не запущена.</b>\n\n"
+                                f"Project {project.number} — "
+                                f"{escape(project.title)}\n\n"
+                                "Лимит AI-проверок "
+                                "для этого задания исчерпан: "
+                                f"<b>{MAX_AI_CHECKS_PER_PROJECT} "
+                                f"из {MAX_AI_CHECKS_PER_PROJECT}</b>."
+                            ),
+                            reply_markup=get_project_card_markup(
+                                project,
+                                course_slug=course.slug,
+                                active_subscription=(
+                                    active_subscription
+                                ),
+                            ),
+                        )
+
+                    return
+
+                await attempt_repository.set_evaluation_metadata(
+                    attempt,
+                    evaluation_version=(
+                        EVALUATION_VERSION
+                    ),
+                    ai_model=ai_model_used,
+                    ai_policy_version=(
+                        ai_policy_version_used
+                    ),
+                    ai_result_json=None,
+                )
+
+                await session.commit()
 
                 result = await review_python_code(
                     project_title=project.title,

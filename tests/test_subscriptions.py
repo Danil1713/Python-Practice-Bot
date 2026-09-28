@@ -5,6 +5,7 @@ from datetime import (
     timedelta,
     timezone,
 )
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
@@ -26,6 +27,13 @@ from app.services.subscription_service import (
 
 @pytest.mark.asyncio
 async def test_concurrent_subscription_extensions_are_not_lost():
+    suffix = uuid4().hex[:12]
+
+    telegram_id = (
+            8_000_000_000_000
+            + uuid4().int % 1_000_000_000_000
+    )
+
     database_url = os.environ[
         "DATABASE_URL"
     ]
@@ -52,8 +60,10 @@ async def test_concurrent_subscription_extensions_are_not_lost():
 
         async with session_factory() as session:
             user = User(
-                telegram_id=900000002,
-                username="subscription_test_user",
+                telegram_id=telegram_id,
+                username=(
+                    f"subscription_test_{suffix}"
+                ),
                 first_name="Test",
             )
 

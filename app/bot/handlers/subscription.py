@@ -6,6 +6,9 @@ from aiogram.types import CallbackQuery
 from app.bot.callbacks import (
     parse_callback_str,
 )
+from app.bot.handlers.course_context import (
+    check_current_course,
+)
 from app.bot.keyboards.subscription import (
     format_subscription_datetime,
     get_subscription_keyboard,
@@ -34,6 +37,12 @@ async def subscription_handler(
             "Некорректная команда.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+            callback,
+            course_slug,
+    ):
         return
 
     view = await get_subscription_view(

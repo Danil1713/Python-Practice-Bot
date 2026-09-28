@@ -26,6 +26,7 @@ from app.services.admin_service import (
     is_admin,
 )
 from app.services.schedule_service import (
+    ScheduledPostDetail,
     ScheduledPostNotEditable,
     ScheduledPostNotFound,
     ScheduleError,
@@ -43,6 +44,41 @@ from app.utils.datetime_utils import (
 )
 
 router = Router()
+
+async def get_admin_post_for_course(
+    *,
+    callback: CallbackQuery,
+    post_id: int,
+    course_slug: str,
+) -> ScheduledPostDetail | None:
+    try:
+        post = await get_scheduled_post_detail(
+            post_id
+        )
+
+    except ScheduledPostNotFound:
+        await callback.answer(
+            "Публикация не найдена.",
+            show_alert=True,
+        )
+        return None
+
+    except ScheduleError as error:
+        await callback.answer(
+            str(error),
+            show_alert=True,
+        )
+        return None
+
+    if post.course_slug != course_slug:
+        await callback.answer(
+            "Публикация относится "
+            "к другому курсу.",
+            show_alert=True,
+        )
+        return None
+
+    return post
 
 @router.callback_query(
     F.data.startswith("admin:schedule:")
@@ -136,9 +172,14 @@ async def admin_post_handler(
 
     post_id, course_slug = parsed
 
-    post = await get_scheduled_post_detail(
-        post_id
+    post = await get_admin_post_for_course(
+        callback=callback,
+        post_id=post_id,
+        course_slug=course_slug,
     )
+
+    if post is None:
+        return
 
     content_preview = post.content
 
@@ -171,6 +212,7 @@ async def admin_post_handler(
             get_scheduled_post_keyboard(
                 post_id=post.id,
                 course_slug=course_slug,
+                status=post.status,
             )
         ),
     )
@@ -201,6 +243,15 @@ async def admin_publish_now_handler(
         return
 
     post_id, course_slug = parsed
+
+    post = await get_admin_post_for_course(
+        callback=callback,
+        post_id=post_id,
+        course_slug=course_slug,
+    )
+
+    if post is None:
+        return
 
     try:
         await publish_post_now(
@@ -273,6 +324,15 @@ async def admin_cancel_post_handler(
 
     post_id, course_slug = parsed
 
+    post = await get_admin_post_for_course(
+        callback=callback,
+        post_id=post_id,
+        course_slug=course_slug,
+    )
+
+    if post is None:
+        return
+
     try:
         await cancel_scheduled_post(
             post_id
@@ -335,6 +395,25 @@ async def admin_reschedule_start_handler(
 
     post_id, course_slug = parsed
 
+    post = await get_admin_post_for_course(
+        callback=callback,
+        post_id=post_id,
+        course_slug=course_slug,
+    )
+
+    if post is None:
+        return
+
+    if post.status not in {
+        "scheduled",
+        "failed",
+    }:
+        await callback.answer(
+            "Эту публикацию нельзя перенести.",
+            show_alert=True,
+        )
+        return
+
     await state.set_state(
         AdminScheduleStates
         .waiting_for_reschedule_datetime
@@ -387,7 +466,8 @@ async def admin_reschedule_datetime_handler(
         await state.clear()
 
         await message.answer(
-            "Контекст переноса публикации потерян."
+            "Контекст переноса публикации "
+            "потерян."
         )
         return
 
@@ -404,9 +484,11 @@ async def admin_reschedule_datetime_handler(
             "❌ Неверный формат.\n\n"
             "Используй:\n"
             "<code>05.09.2026 18:30</code>",
-            reply_markup=get_admin_input_cancel_keyboard(
-                post_id=post_id,
-                course_slug=course_slug,
+            reply_markup=(
+                get_admin_input_cancel_keyboard(
+                    post_id=post_id,
+                    course_slug=course_slug,
+                )
             ),
         )
         return
@@ -414,11 +496,14 @@ async def admin_reschedule_datetime_handler(
     except NonexistentLocalTime:
         await message.answer(
             "❌ Такого местного времени "
-            "не существует из-за перевода часов.\n\n"
+            "не существует из-за "
+            "перевода часов.\n\n"
             "Выбери другое время.",
-            reply_markup=get_admin_input_cancel_keyboard(
-                post_id=post_id,
-                course_slug=course_slug,
+            reply_markup=(
+                get_admin_input_cancel_keyboard(
+                    post_id=post_id,
+                    course_slug=course_slug,
+                )
             ),
         )
         return
@@ -428,9 +513,11 @@ async def admin_reschedule_datetime_handler(
             "❌ Это время встречается дважды "
             "из-за перевода часов.\n\n"
             "Выбери другое время.",
-            reply_markup=get_admin_input_cancel_keyboard(
-                post_id=post_id,
-                course_slug=course_slug,
+            reply_markup=(
+                get_admin_input_cancel_keyboard(
+                    post_id=post_id,
+                    course_slug=course_slug,
+                )
             ),
         )
         return
@@ -438,10 +525,42 @@ async def admin_reschedule_datetime_handler(
     if scheduled_at <= datetime.now(UTC):
         await message.answer(
             "❌ Время должно быть в будущем.",
-            reply_markup=get_admin_input_cancel_keyboard(
-                post_id=post_id,
-                course_slug=course_slug,
+            reply_markup=(
+                get_admin_input_cancel_keyboard(
+                    post_id=post_id,
+                    course_slug=course_slug,
+                )
             ),
+        )
+        return
+
+    try:
+        post = await get_scheduled_post_detail(
+            post_id
+        )
+
+    except ScheduleError as error:
+        await state.clear()
+
+        posts = await get_course_schedule(
+            course_slug
+        )
+
+        await message.answer(
+            text=f"❌ {error}",
+            reply_markup=get_schedule_keyboard(
+                course_slug,
+                posts,
+            ),
+        )
+        return
+
+    if post.course_slug != course_slug:
+        await state.clear()
+
+        await message.answer(
+            "❌ Публикация относится "
+            "к другому курсу."
         )
         return
 
@@ -451,11 +570,34 @@ async def admin_reschedule_datetime_handler(
             scheduled_at=scheduled_at,
         )
 
-    except ScheduleError as error:
+    except (
+        ScheduledPostNotFound,
+        ScheduledPostNotEditable,
+    ) as error:
         await state.clear()
 
+        posts = await get_course_schedule(
+            course_slug
+        )
+
         await message.answer(
-            f"❌ {error}"
+            text=f"❌ {error}",
+            reply_markup=get_schedule_keyboard(
+                course_slug,
+                posts,
+            ),
+        )
+        return
+
+    except ScheduleError as error:
+        await message.answer(
+            text=f"❌ {error}",
+            reply_markup=(
+                get_admin_input_cancel_keyboard(
+                    post_id=post_id,
+                    course_slug=course_slug,
+                )
+            ),
         )
         return
 
@@ -467,7 +609,8 @@ async def admin_reschedule_datetime_handler(
 
     await message.answer(
         text=(
-            "✅ <b>Публикация перенесена.</b>\n\n"
+            "✅ <b>Публикация перенесена.</b>"
+            "\n\n"
             f"Новое время: "
             f"<b>{value}</b>"
         ),

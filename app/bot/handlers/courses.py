@@ -1,6 +1,7 @@
 from html import escape
 
 from aiogram import F, Router
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from app.bot.callbacks import (
@@ -22,6 +23,11 @@ from app.services.course_service import (
 from app.services.subscription_service import (
     has_active_subscription,
 )
+from app.services.user_service import (
+    clear_current_course,
+    get_current_course_slug,
+    set_current_course,
+)
 
 router = Router()
 
@@ -31,6 +37,7 @@ router = Router()
 )
 async def select_course_handler(
     callback: CallbackQuery,
+    state: FSMContext,
 ) -> None:
     course_slug = parse_callback_str(
         callback.data,
@@ -54,6 +61,39 @@ async def select_course_handler(
             show_alert=True,
         )
         return
+
+    current_course_slug = (
+        await get_current_course_slug(
+            callback.from_user.id
+        )
+    )
+
+    if (
+            current_course_slug is not None
+            and current_course_slug != course.slug
+    ):
+        await callback.answer(
+            "Сначала нажми "
+            "«Сменить уровень».",
+            show_alert=True,
+        )
+        return
+
+    if current_course_slug is None:
+        selected = await set_current_course(
+            telegram_id=callback.from_user.id,
+            course_slug=course.slug,
+        )
+
+        if not selected:
+            await callback.answer(
+                "Не удалось выбрать уровень. "
+                "Попробуй /start.",
+                show_alert=True,
+            )
+            return
+
+    await state.clear()
 
     course_title = escape(
         course.title
@@ -103,7 +143,14 @@ async def select_course_handler(
 )
 async def back_to_courses_handler(
     callback: CallbackQuery,
+    state: FSMContext,
 ) -> None:
+    await state.clear()
+
+    await clear_current_course(
+        callback.from_user.id
+    )
+
     courses = await get_active_courses()
 
     await callback.message.edit_text(

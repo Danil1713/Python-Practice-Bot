@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from aiogram import Bot
+from sqlalchemy.exc import IntegrityError
 
 from app.database.repositories.course_repository import (
     CourseRepository,
@@ -221,6 +222,53 @@ async def create_scheduled_post(
                     "другому курсу."
                 )
 
+            if project.published_at is None:
+                raise ScheduleError(
+                    "Сначала опубликуй Project."
+                )
+
+            if hint.number not in {
+                1,
+                2,
+                3,
+            }:
+                raise ScheduleError(
+                    "Некорректный номер Hint."
+                )
+
+            if hint.number > 1:
+                hints = await hint_repository.get_by_project(
+                    project.id
+                )
+
+                published_numbers = {
+                    item.number
+                    for item in hints
+                    if item.published_at is not None
+                }
+
+                required_numbers = set(
+                    range(
+                        1,
+                        hint.number,
+                    )
+                )
+
+                missing_numbers = (
+                        required_numbers
+                        - published_numbers
+                )
+
+                if missing_numbers:
+                    missing_number = min(
+                        missing_numbers
+                    )
+
+                    raise ScheduleError(
+                        f"Сначала опубликуй "
+                        f"Hint {missing_number}."
+                    )
+
             if hint.published_at is not None:
                 raise ScheduleError(
                     "Этот Hint уже опубликован."
@@ -239,16 +287,36 @@ async def create_scheduled_post(
                     "активная публикация."
                 )
 
-        post = await post_repository.create(
-            course_id=course.id,
-            post_type=post_type,
-            content=content,
-            scheduled_at=scheduled_at,
-            project_id=project_id,
-            hint_id=hint_id,
-        )
+        try:
+            post = await post_repository.create(
+                course_id=course.id,
+                post_type=post_type,
+                content=content,
+                scheduled_at=scheduled_at,
+                project_id=project_id,
+                hint_id=hint_id,
+            )
 
-        await session.commit()
+            await session.commit()
+
+        except IntegrityError as error:
+            await session.rollback()
+
+            if post_type == "project":
+                raise ScheduleError(
+                    "Для этого Project уже есть "
+                    "активная публикация."
+                ) from error
+
+            if post_type == "hint":
+                raise ScheduleError(
+                    "Для этого Hint уже есть "
+                    "активная публикация."
+                ) from error
+
+            raise ScheduleError(
+                "Не удалось создать публикацию."
+            ) from error
 
         return ScheduledPostItem(
             id=post.id,
@@ -373,10 +441,16 @@ async def publish_post_now(
 
             await session.commit()
 
-    await publish_scheduled_post(
+    published = await publish_scheduled_post(
         post_id=post_id,
         bot=bot,
     )
+
+    if not published:
+        raise ScheduleError(
+            "Публикация не была отправлена. "
+            "Проверь статус и текст ошибки."
+        )
 
 async def get_course_schedule(
     course_slug: str,
@@ -466,6 +540,9 @@ async def get_course_projects_for_schedule(
         project_repository = ProjectRepository(
             session
         )
+        post_repository = ScheduledPostRepository(
+            session
+        )
 
         course = await course_repository.get_by_slug(
             course_slug
@@ -483,14 +560,28 @@ async def get_course_projects_for_schedule(
             )
         )
 
-        return [
-            ScheduleProjectItem(
-                id=project.id,
-                number=project.number,
-                title=project.title,
+        result = []
+
+        for project in projects:
+            has_active_post = (
+                await post_repository
+                .has_active_for_project(
+                    project.id
+                )
             )
-            for project in projects
-        ]
+
+            if has_active_post:
+                continue
+
+            result.append(
+                ScheduleProjectItem(
+                    id=project.id,
+                    number=project.number,
+                    title=project.title,
+                )
+            )
+
+        return result
 
 
 async def get_course_projects_for_hint_schedule(
@@ -501,6 +592,12 @@ async def get_course_projects_for_hint_schedule(
             session
         )
         project_repository = ProjectRepository(
+            session
+        )
+        hint_repository = HintRepository(
+            session
+        )
+        post_repository = ScheduledPostRepository(
             session
         )
 
@@ -520,14 +617,52 @@ async def get_course_projects_for_hint_schedule(
             )
         )
 
-        return [
-            ScheduleProjectItem(
-                id=project.id,
-                number=project.number,
-                title=project.title,
+        result = []
+
+        for project in projects:
+            hints = (
+                await hint_repository
+                .get_unpublished_by_project(
+                    project.id
+                )
             )
-            for project in projects
-        ]
+
+            if not hints:
+                result.append(
+                    ScheduleProjectItem(
+                        id=project.id,
+                        number=project.number,
+                        title=project.title,
+                    )
+                )
+                continue
+
+            has_available_hint = False
+
+            for hint in hints:
+                has_active_post = (
+                    await post_repository
+                    .has_active_for_hint(
+                        hint.id
+                    )
+                )
+
+                if not has_active_post:
+                    has_available_hint = True
+                    break
+
+            if not has_available_hint:
+                continue
+
+            result.append(
+                ScheduleProjectItem(
+                    id=project.id,
+                    number=project.number,
+                    title=project.title,
+                )
+            )
+
+        return result
 
 
 async def get_project_hints_for_schedule(
@@ -535,6 +670,9 @@ async def get_project_hints_for_schedule(
 ) -> list[ScheduleHintItem]:
     async with async_session_factory() as session:
         hint_repository = HintRepository(
+            session
+        )
+        post_repository = ScheduledPostRepository(
             session
         )
 
@@ -545,14 +683,28 @@ async def get_project_hints_for_schedule(
             )
         )
 
-        return [
-            ScheduleHintItem(
-                id=hint.id,
-                number=hint.number,
-                project_id=hint.project_id,
+        result = []
+
+        for hint in hints:
+            has_active_post = (
+                await post_repository
+                .has_active_for_hint(
+                    hint.id
+                )
             )
-            for hint in hints
-        ]
+
+            if has_active_post:
+                continue
+
+            result.append(
+                ScheduleHintItem(
+                    id=hint.id,
+                    number=hint.number,
+                    project_id=hint.project_id,
+                )
+            )
+
+        return result
 
 async def ensure_no_active_duplicate(
     repository: ScheduledPostRepository,

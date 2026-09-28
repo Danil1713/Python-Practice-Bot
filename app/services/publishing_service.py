@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 async def publish_scheduled_post(
     post_id: int,
     bot: Bot,
-) -> None:
+) -> bool:
     async with async_session_factory() as session:
         post_repository = ScheduledPostRepository(
             session
@@ -44,7 +44,7 @@ async def publish_scheduled_post(
 
         if not claimed:
             await session.rollback()
-            return
+            return False
 
         await session.commit()
 
@@ -53,7 +53,7 @@ async def publish_scheduled_post(
         )
 
         if post is None:
-            return
+            return False
 
         course = await course_repository.get_by_id(
             post.course_id
@@ -65,7 +65,7 @@ async def publish_scheduled_post(
                 "Course not found",
             )
             await session.commit()
-            return
+            return False
 
         if course.telegram_channel_id is None:
             await post_repository.mark_failed(
@@ -73,7 +73,7 @@ async def publish_scheduled_post(
                 "Telegram channel is not configured",
             )
             await session.commit()
-            return
+            return False
 
         channel_id = course.telegram_channel_id
         content = post.content
@@ -97,7 +97,7 @@ async def publish_scheduled_post(
             )
 
             await session.commit()
-            return
+            return False
 
     try:
         message = await bot.send_message(
@@ -130,7 +130,7 @@ async def publish_scheduled_post(
 
                 await session.commit()
 
-        return
+        return False
 
     published_at = datetime.now(
         timezone.utc
@@ -152,7 +152,7 @@ async def publish_scheduled_post(
         )
 
         if post is None:
-            return
+            return False
 
         await post_repository.mark_published(
             post=post,
@@ -197,3 +197,13 @@ async def publish_scheduled_post(
                 )
 
         await session.commit()
+
+    logger.info(
+        "Published scheduled post "
+        "post_id=%s channel_id=%s message_id=%s",
+        post_id,
+        channel_id,
+        message.message_id,
+    )
+
+    return True

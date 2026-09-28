@@ -29,6 +29,8 @@ class UserNotFound(AdminSubscriptionError):
 class CourseNotFound(AdminSubscriptionError):
     pass
 
+MAX_ADMIN_SUBSCRIPTION_DAYS = 3650
+
 
 @dataclass(frozen=True)
 class AdminUserItem:
@@ -82,6 +84,13 @@ async def activate_or_extend_subscription(
             "Количество дней должно быть больше 0."
         )
 
+    if days > MAX_ADMIN_SUBSCRIPTION_DAYS:
+        raise AdminSubscriptionError(
+            "Нельзя выдать подписку "
+            f"больше чем на "
+            f"{MAX_ADMIN_SUBSCRIPTION_DAYS} дней."
+        )
+
     async with async_session_factory() as session:
         user_repository = UserRepository(
             session
@@ -106,6 +115,12 @@ async def activate_or_extend_subscription(
         if course is None:
             raise CourseNotFound(
                 "Курс не найден."
+            )
+
+        if not course.requires_subscription:
+            raise AdminSubscriptionError(
+                "Для этого курса подписка "
+                "не требуется."
             )
 
         subscription = (

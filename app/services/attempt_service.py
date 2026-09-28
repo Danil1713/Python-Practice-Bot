@@ -25,11 +25,15 @@ from app.database.session import (
     async_session_factory,
 )
 from app.exceptions.attempts import (
+    AttemptAILimitReached,
     AttemptAlreadyPending,
     AttemptError,
     AttemptProjectLocked,
     AttemptProjectNotFound,
     AttemptUserNotFound,
+)
+from app.services.ai_check_limit_service import (
+    MAX_AI_CHECKS_PER_PROJECT,
 )
 
 
@@ -114,6 +118,23 @@ async def create_attempt(
 
         if project.published_at is None:
             raise AttemptProjectLocked
+
+        ai_checks_used = (
+            await attempt_repository
+            .count_ai_checks(
+                user_id=user.id,
+                project_id=project.id,
+            )
+        )
+
+        if (
+                ai_checks_used
+                >= MAX_AI_CHECKS_PER_PROJECT
+        ):
+            raise AttemptAILimitReached(
+                "Лимит AI-проверок "
+                "для этого Project исчерпан."
+            )
 
         await attempt_repository.lock_attempt_creation(
             user_id=user.id,
@@ -337,6 +358,33 @@ async def save_attempt_status_message(
             attempt=attempt,
             chat_id=chat_id,
             message_id=message_id,
+        )
+
+        await session.commit()
+
+
+async def mark_attempt_setup_error(
+    attempt_id: int,
+    error_message: str,
+) -> None:
+    async with async_session_factory() as session:
+        attempt_repository = AttemptRepository(
+            session
+        )
+
+        attempt = await attempt_repository.get_by_id(
+            attempt_id
+        )
+
+        if (
+            attempt is None
+            or attempt.status != "pending"
+        ):
+            return
+
+        await attempt_repository.mark_error(
+            attempt=attempt,
+            error_message=error_message,
         )
 
         await session.commit()

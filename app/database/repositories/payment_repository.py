@@ -168,3 +168,29 @@ class PaymentRepository:
         return list(
             result.scalars().all()
         )
+
+    async def get_review_payments(
+            self,
+            *,
+            course_id: int,
+            limit: int = 50,
+    ) -> list[Payment]:
+        statement = (
+            select(Payment)
+            .where(
+                Payment.status == "review",
+                Payment.course_id == course_id,
+            )
+            .order_by(
+                Payment.created_at.asc()
+            )
+            .limit(limit)
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return list(
+            result.scalars().all()
+        )

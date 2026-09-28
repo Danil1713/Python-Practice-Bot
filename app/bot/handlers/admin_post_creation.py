@@ -12,6 +12,7 @@ from app.bot.callbacks import (
 )
 from app.bot.handlers.admin_common import (
     check_admin,
+    format_admin_datetime,
 )
 from app.bot.keyboards.admin import (
     get_admin_add_cancel_keyboard,
@@ -22,7 +23,7 @@ from app.bot.keyboards.admin import (
     get_project_creation_input_keyboard,
     get_project_selection_keyboard,
     get_schedule_confirm_keyboard,
-    get_scheduled_post_keyboard,
+    get_schedule_keyboard,
 )
 from app.bot.states.admin import (
     AdminScheduleStates,
@@ -45,6 +46,7 @@ from app.services.schedule_service import (
     create_scheduled_post,
     get_course_projects_for_hint_schedule,
     get_course_projects_for_schedule,
+    get_course_schedule,
     get_project_hints_for_schedule,
 )
 from app.services.telegram_post_validation_service import (
@@ -230,6 +232,25 @@ async def admin_add_regular_handler(
         )
         return
 
+    data = await state.get_data()
+
+    state_course_slug = data.get(
+        "course_slug"
+    )
+
+    if (
+            not isinstance(
+                state_course_slug,
+                str,
+            )
+            or state_course_slug != course_slug
+    ):
+        await callback.answer(
+            "Контекст публикации изменился.",
+            show_alert=True,
+        )
+        return
+
     await state.update_data(
         course_slug=course_slug,
         post_type="regular",
@@ -275,6 +296,25 @@ async def admin_add_project_type_handler(
     if course_slug is None:
         await callback.answer(
             "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    data = await state.get_data()
+
+    state_course_slug = data.get(
+        "course_slug"
+    )
+
+    if (
+            not isinstance(
+                state_course_slug,
+                str,
+            )
+            or state_course_slug != course_slug
+    ):
+        await callback.answer(
+            "Контекст публикации изменился.",
             show_alert=True,
         )
         return
@@ -756,6 +796,25 @@ async def admin_add_hint_type_handler(
         )
         return
 
+    data = await state.get_data()
+
+    state_course_slug = data.get(
+        "course_slug"
+    )
+
+    if (
+            not isinstance(
+                state_course_slug,
+                str,
+            )
+            or state_course_slug != course_slug
+    ):
+        await callback.answer(
+            "Контекст публикации изменился.",
+            show_alert=True,
+        )
+        return
+
     await _show_hint_project_selection(
         callback.message,
         state,
@@ -1087,12 +1146,23 @@ async def admin_add_datetime_handler(
     data = await state.get_data()
 
     course_slug = data.get("course_slug")
+    post_type = data.get("post_type")
+    content = data.get("content")
 
-    if not isinstance(course_slug, str):
+    if (
+        not isinstance(course_slug, str)
+        or post_type not in {
+            "regular",
+            "project",
+            "hint",
+        }
+        or not isinstance(content, str)
+    ):
         await state.clear()
 
         await message.answer(
-            "Контекст создания публикации потерян."
+            "Контекст публикации потерян.\n\n"
+            "Начни создание публикации заново."
         )
         return
 
@@ -1150,11 +1220,9 @@ async def admin_add_datetime_handler(
         scheduled_at=scheduled_at.isoformat()
     )
 
-    data = await state.get_data()
-
     content_preview = (
         build_telegram_post_preview(
-            data["content"],
+            content,
             max_chars=2000,
         )
     )
@@ -1166,14 +1234,14 @@ async def admin_add_datetime_handler(
     await message.answer(
         text=(
             "📋 <b>Проверь публикацию</b>\n\n"
-            f"Тип: <b>{data['post_type']}</b>\n"
+            f"Тип: <b>{post_type}</b>\n"
             f"Время: <b>{value}</b>\n\n"
             "<b>Текст "
             "(предпросмотр):</b>\n\n"
-            f"{escape(content_preview)}"
+            f"{content_preview}"
         ),
         reply_markup=get_schedule_confirm_keyboard(
-            data["course_slug"]
+            course_slug
         ),
     )
 
@@ -1194,38 +1262,27 @@ async def admin_add_confirm_handler(
     course_slug = data.get("course_slug")
     post_type = data.get("post_type")
     content = data.get("content")
-    scheduled_at_raw = data.get("scheduled_at")
-    project_id = data.get("project_id")
-    hint_id = data.get("hint_id")
+    scheduled_at_raw = data.get(
+        "scheduled_at"
+    )
 
     if (
         not isinstance(course_slug, str)
-        or not isinstance(post_type, str)
+        or post_type not in {
+            "regular",
+            "project",
+            "hint",
+        }
         or not isinstance(content, str)
-        or not isinstance(scheduled_at_raw, str)
-    ):
-        await callback.answer(
-            "Контекст создания публикации потерян.",
-            show_alert=True,
+        or not isinstance(
+            scheduled_at_raw,
+            str,
         )
-        return
-
-    if (
-        project_id is not None
-        and not isinstance(project_id, int)
     ):
-        await callback.answer(
-            "Некорректный Project.",
-            show_alert=True,
-        )
-        return
+        await state.clear()
 
-    if (
-        hint_id is not None
-        and not isinstance(hint_id, int)
-    ):
         await callback.answer(
-            "Некорректный Hint.",
+            "Контекст публикации потерян.",
             show_alert=True,
         )
         return
@@ -1236,6 +1293,8 @@ async def admin_add_confirm_handler(
         )
 
     except ValueError:
+        await state.clear()
+
         await callback.answer(
             "Некорректное время публикации.",
             show_alert=True,
@@ -1248,8 +1307,12 @@ async def admin_add_confirm_handler(
             post_type=post_type,
             content=content,
             scheduled_at=scheduled_at,
-            project_id=project_id,
-            hint_id=hint_id,
+            project_id=data.get(
+                "project_id"
+            ),
+            hint_id=data.get(
+                "hint_id"
+            ),
         )
 
     except ScheduleError as error:
@@ -1261,15 +1324,22 @@ async def admin_add_confirm_handler(
 
     await state.clear()
 
+    posts = await get_course_schedule(
+        course_slug
+    )
+
     await callback.message.edit_text(
         text=(
-            "✅ <b>Публикация запланирована.</b>\n\n"
-            f"ID: <code>#{post.id}</code>\n"
-            f"Тип: <b>{escape(post.post_type)}</b>"
+            "✅ <b>Публикация "
+            "запланирована.</b>\n\n"
+            f"ID: <b>#{post.id}</b>\n"
+            f"Время: <b>"
+            f"{format_admin_datetime(post.scheduled_at)}"
+            f"</b>"
         ),
-        reply_markup=get_scheduled_post_keyboard(
-            post_id=post.id,
-            course_slug=course_slug,
+        reply_markup=get_schedule_keyboard(
+            course_slug,
+            posts,
         ),
     )
 

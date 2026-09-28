@@ -55,6 +55,20 @@ class ProcessedPayment:
     course_slug: str
     subscription_days: int
 
+@dataclass(frozen=True)
+class ReviewPaymentItem:
+    id: int
+    telegram_user_id: int
+    username: str | None
+    course_slug: str
+    course_title: str
+    amount: int
+    currency: str
+    subscription_days: int
+    external_payment_id: str | None
+    error_message: str | None
+    created_at: datetime
+
 async def create_payment(
     *,
     telegram_user_id: int,
@@ -176,7 +190,7 @@ async def _process_telegram_stars_payment(
     telegram_payment_charge_id: str,
     currency: str,
     total_amount: int,
-) -> ProcessedPayment | None:
+) -> ProcessedPayment:
     now = datetime.now(
         timezone.utc
     )
@@ -280,7 +294,13 @@ async def _process_telegram_stars_payment(
             )
 
         if payment.status == "succeeded":
-            return None
+            return ProcessedPayment(
+                course_slug=course.slug,
+                subscription_days=(
+                    payment.subscription_days
+                ),
+            )
+
         if payment.external_payment_id is None:
             await payment_repository.set_external_id(
                 payment,
@@ -315,7 +335,7 @@ async def process_telegram_stars_payment(
     telegram_payment_charge_id: str,
     currency: str,
     total_amount: int,
-) -> ProcessedPayment | None:
+) -> ProcessedPayment:
     try:
         return await (
             _process_telegram_stars_payment(
@@ -381,12 +401,16 @@ async def cancel_payment(
     *,
     payment_id: int,
     telegram_user_id: int,
+    course_slug: str,
 ) -> bool:
     async with async_session_factory() as session:
         payment_repository = PaymentRepository(
             session
         )
         user_repository = UserRepository(
+            session
+        )
+        course_repository = CourseRepository(
             session
         )
 
@@ -408,11 +432,27 @@ async def cancel_payment(
 
         if (
             user is None
-            or user.telegram_id != telegram_user_id
+            or user.telegram_id
+            != telegram_user_id
         ):
             raise PaymentError(
                 "Этот платёж принадлежит "
                 "другому пользователю."
+            )
+
+        course = await course_repository.get_by_id(
+            payment.course_id
+        )
+
+        if course is None:
+            raise PaymentError(
+                "Курс платежа не найден."
+            )
+
+        if course.slug != course_slug:
+            raise PaymentError(
+                "Платёж относится "
+                "к другому курсу."
             )
 
         if payment.status != "pending":
@@ -491,6 +531,134 @@ async def approve_pre_checkout(
         )
 
         await session.commit()
+
+
+async def get_review_payments_for_course(
+    course_slug: str,
+) -> list[ReviewPaymentItem]:
+    async with async_session_factory() as session:
+        payment_repository = PaymentRepository(
+            session
+        )
+        user_repository = UserRepository(
+            session
+        )
+        course_repository = CourseRepository(
+            session
+        )
+
+        course = await course_repository.get_by_slug(
+            course_slug
+        )
+
+        if course is None:
+            raise PaymentError(
+                "Курс не найден."
+            )
+
+        payments = (
+            await payment_repository
+            .get_review_payments(
+                course_id=course.id,
+            )
+        )
+
+        result: list[ReviewPaymentItem] = []
+
+        for payment in payments:
+            user = await user_repository.get_by_id(
+                payment.user_id
+            )
+
+            if user is None:
+                continue
+
+            result.append(
+                ReviewPaymentItem(
+                    id=payment.id,
+                    telegram_user_id=(
+                        user.telegram_id
+                    ),
+                    username=user.username,
+                    course_slug=course.slug,
+                    course_title=course.title,
+                    amount=payment.amount,
+                    currency=payment.currency,
+                    subscription_days=(
+                        payment.subscription_days
+                    ),
+                    external_payment_id=(
+                        payment.external_payment_id
+                    ),
+                    error_message=(
+                        payment.error_message
+                    ),
+                    created_at=payment.created_at,
+                )
+            )
+
+        return result
+
+
+async def get_review_payment_detail(
+    *,
+    payment_id: int,
+    course_slug: str,
+) -> ReviewPaymentItem | None:
+    async with async_session_factory() as session:
+        payment_repository = PaymentRepository(
+            session
+        )
+        user_repository = UserRepository(
+            session
+        )
+        course_repository = CourseRepository(
+            session
+        )
+
+        course = await course_repository.get_by_slug(
+            course_slug
+        )
+
+        if course is None:
+            return None
+
+        payment = await payment_repository.get_by_id(
+            payment_id
+        )
+
+        if (
+            payment is None
+            or payment.status != "review"
+            or payment.course_id != course.id
+        ):
+            return None
+
+        user = await user_repository.get_by_id(
+            payment.user_id
+        )
+
+        if user is None:
+            return None
+
+        return ReviewPaymentItem(
+            id=payment.id,
+            telegram_user_id=user.telegram_id,
+            username=user.username,
+            course_slug=course.slug,
+            course_title=course.title,
+            amount=payment.amount,
+            currency=payment.currency,
+            subscription_days=(
+                payment.subscription_days
+            ),
+            external_payment_id=(
+                payment.external_payment_id
+            ),
+            error_message=payment.error_message,
+            created_at=payment.created_at,
+        )
+
 
 async def mark_payment_for_review(
     *,

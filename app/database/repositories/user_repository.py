@@ -120,3 +120,22 @@ class UserRepository:
         user.ai_review_consent_at = accepted_at
 
         return True
+
+    async def set_current_course_id(
+            self,
+            *,
+            telegram_id: int,
+            course_id: int | None,
+    ) -> bool:
+        user = await self.get_by_telegram_id(
+            telegram_id
+        )
+
+        if user is None:
+            return False
+
+        user.current_course_id = course_id
+
+        await self.session.flush()
+
+        return True

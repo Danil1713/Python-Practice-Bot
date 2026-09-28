@@ -14,6 +14,9 @@ from app.services.attempt_service import (
     get_attempt_detail,
     get_project_attempts,
 )
+from app.utils.telegram_text import (
+    split_telegram_text,
+)
 
 router = Router()
 
@@ -282,9 +285,17 @@ async def attempt_feedback_handler(
         return
 
     await callback.message.answer(
-        "<b>🤖 Результат проверки</b>\n\n"
-        f"{escape(attempt.ai_feedback)}"
+        "<b>🤖 Результат проверки</b>"
     )
+
+    feedback_chunks = split_telegram_text(
+        attempt.ai_feedback
+    )
+
+    for chunk in feedback_chunks:
+        await callback.message.answer(
+            escape(chunk)
+        )
 
     await show_attempt_detail(
         callback=callback,

@@ -259,7 +259,9 @@ class AttemptRepository:
         statement = (
             select(Attempt)
             .where(
-                Attempt.status == "pending"
+                Attempt.status == "pending",
+                Attempt.status_chat_id.is_not(None),
+                Attempt.status_message_id.is_not(None),
             )
             .order_by(
                 Attempt.submitted_at.asc()
@@ -366,3 +368,70 @@ class AttemptRepository:
         )
 
         await self.session.flush()
+
+    async def recover_stuck_pending_setup(
+            self,
+            before: datetime,
+    ) -> int:
+        statement = select(
+            Attempt
+        ).where(
+            Attempt.status == "pending",
+            Attempt.submitted_at <= before,
+            (
+                    Attempt.status_chat_id.is_(None)
+                    | Attempt.status_message_id.is_(None)
+            ),
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        attempts = list(
+            result.scalars().all()
+        )
+
+        now = datetime.now(
+            timezone.utc
+        )
+
+        for attempt in attempts:
+            attempt.status = "error"
+            attempt.error_message = (
+                "Не удалось подготовить "
+                "Telegram-сообщение "
+                "для результата проверки."
+            )
+            attempt.checking_started_at = None
+            attempt.checked_at = now
+
+        await self.session.flush()
+
+        return len(attempts)
+
+
+    async def count_ai_checks(
+            self,
+            *,
+            user_id: int,
+            project_id: int,
+    ) -> int:
+        statement = (
+            select(
+                func.count(Attempt.id)
+            )
+            .where(
+                Attempt.user_id == user_id,
+                Attempt.project_id == project_id,
+                Attempt.ai_model.is_not(None),
+            )
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return int(
+            result.scalar_one()
+        )
