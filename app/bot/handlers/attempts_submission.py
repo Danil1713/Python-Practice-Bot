@@ -50,11 +50,8 @@ logger = logging.getLogger(__name__)
 
 MAX_SOLUTION_FILE_SIZE = 200 * 1024
 
-@router.callback_query(
-    F.data.startswith(
-        "attempt:ai-consent:"
-    )
-)
+
+@router.callback_query(F.data.startswith("attempt:ai-consent:"))
 async def ai_review_consent_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -90,8 +87,7 @@ async def ai_review_consent_handler(
 
     if not active:
         await callback.answer(
-            "🔒 Для отправки решения "
-            "нужен доступ к уровню.",
+            "🔒 Для отправки решения нужен доступ к уровню.",
             show_alert=True,
         )
         return
@@ -103,8 +99,7 @@ async def ai_review_consent_handler(
 
     if usage is None:
         await callback.answer(
-            "Не удалось определить "
-            "лимит проверок.",
+            "Не удалось определить лимит проверок.",
             show_alert=True,
         )
         return
@@ -122,9 +117,7 @@ async def ai_review_consent_handler(
         )
         return
 
-    accepted = await accept_ai_review_consent(
-        callback.from_user.id
-    )
+    accepted = await accept_ai_review_consent(callback.from_user.id)
 
     if not accepted:
         await callback.answer(
@@ -133,13 +126,9 @@ async def ai_review_consent_handler(
         )
         return
 
-    await state.set_state(
-        SolutionStates.waiting_for_file
-    )
+    await state.set_state(SolutionStates.waiting_for_file)
 
-    await state.update_data(
-        project_id=project.id
-    )
+    await state.update_data(project_id=project.id)
 
     await callback.message.edit_text(
         text=(
@@ -152,20 +141,13 @@ async def ai_review_consent_handler(
             f"🤖 AI-проверки: "
             f"<b>{usage.used} / {usage.limit}</b>"
         ),
-        reply_markup=(
-            get_cancel_submission_keyboard(
-                project.id
-            )
-        ),
+        reply_markup=(get_cancel_submission_keyboard(project.id)),
     )
 
-    await callback.answer(
-        "✅ Согласие сохранено."
-    )
+    await callback.answer("✅ Согласие сохранено.")
 
-@router.callback_query(
-    F.data.startswith("project:submit:")
-)
+
+@router.callback_query(F.data.startswith("project:submit:"))
 async def start_submission_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -203,8 +185,7 @@ async def start_submission_handler(
 
     if project.status == "pending":
         await callback.answer(
-            "⏳ У тебя уже есть решение "
-            "на проверке.",
+            "⏳ У тебя уже есть решение на проверке.",
             show_alert=True,
         )
         return
@@ -216,8 +197,7 @@ async def start_submission_handler(
 
     if usage is None:
         await callback.answer(
-            "Не удалось определить "
-            "лимит проверок.",
+            "Не удалось определить лимит проверок.",
             show_alert=True,
         )
         return
@@ -240,17 +220,12 @@ async def start_submission_handler(
 
     if not active:
         await callback.answer(
-            "🔒 Для отправки решения "
-            "нужен доступ к уровню.",
+            "🔒 Для отправки решения нужен доступ к уровню.",
             show_alert=True,
         )
         return
 
-    has_consent = (
-        await has_current_ai_review_consent(
-            callback.from_user.id
-        )
-    )
+    has_consent = await has_current_ai_review_consent(callback.from_user.id)
 
     if not has_consent:
         await callback.message.edit_text(
@@ -269,23 +244,15 @@ async def start_submission_handler(
                 "содержимое файла для "
                 "автоматической проверки."
             ),
-            reply_markup=(
-                get_ai_review_consent_keyboard(
-                    project.id
-                )
-            ),
+            reply_markup=(get_ai_review_consent_keyboard(project.id)),
         )
 
         await callback.answer()
         return
 
-    await state.set_state(
-        SolutionStates.waiting_for_file
-    )
+    await state.set_state(SolutionStates.waiting_for_file)
 
-    await state.update_data(
-        project_id=project.id
-    )
+    await state.update_data(project_id=project.id)
 
     await callback.message.edit_text(
         text=(
@@ -298,19 +265,13 @@ async def start_submission_handler(
             f"🤖 AI-проверки: "
             f"<b>{usage.used} / {usage.limit}</b>"
         ),
-        reply_markup=(
-            get_cancel_submission_keyboard(
-                project.id
-            )
-        ),
+        reply_markup=(get_cancel_submission_keyboard(project.id)),
     )
 
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith("attempt:cancel:")
-)
+@router.callback_query(F.data.startswith("attempt:cancel:"))
 async def cancel_submission_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -356,9 +317,7 @@ async def cancel_submission_handler(
         reply_markup=keyboard,
     )
 
-    await callback.answer(
-        "Отправка отменена."
-    )
+    await callback.answer("Отправка отменена.")
 
 
 @router.message(
@@ -384,33 +343,20 @@ async def solution_file_handler(
     if not isinstance(project_id, int):
         await state.clear()
 
-        await message.answer(
-            "Не удалось определить проект. "
-            "Выбери его заново."
-        )
+        await message.answer("Не удалось определить проект. Выбери его заново.")
         return
 
     if not filename.lower().endswith(".py"):
         await message.answer(
-            "❌ Нужен файл с расширением "
-            "<code>.py</code>.",
-            reply_markup=get_cancel_submission_keyboard(
-                project_id
-            ),
+            "❌ Нужен файл с расширением <code>.py</code>.",
+            reply_markup=get_cancel_submission_keyboard(project_id),
         )
         return
 
-    if (
-            document.file_size is not None
-            and document.file_size
-            > MAX_SOLUTION_FILE_SIZE
-    ):
+    if document.file_size is not None and document.file_size > MAX_SOLUTION_FILE_SIZE:
         await message.answer(
-            "❌ Файл слишком большой.\n"
-            "Максимальный размер: 200 KB.",
-            reply_markup=get_cancel_submission_keyboard(
-                project_id
-            ),
+            "❌ Файл слишком большой.\nМаксимальный размер: 200 KB.",
+            reply_markup=get_cancel_submission_keyboard(project_id),
         )
         return
 
@@ -422,9 +368,7 @@ async def solution_file_handler(
     if project is None:
         await state.clear()
 
-        await message.answer(
-            "Проект не найден."
-        )
+        await message.answer("Проект не найден.")
         return
 
     active = await has_active_subscription(
@@ -435,16 +379,10 @@ async def solution_file_handler(
     if not active:
         await state.clear()
 
-        await message.answer(
-            "🔒 Доступ к уровню закончился."
-        )
+        await message.answer("🔒 Доступ к уровню закончился.")
         return
 
-    has_consent = (
-        await has_current_ai_review_consent(
-            message.from_user.id
-        )
-    )
+    has_consent = await has_current_ai_review_consent(message.from_user.id)
 
     if not has_consent:
         await state.clear()
@@ -477,8 +415,7 @@ async def solution_file_handler(
         )
 
         await message.answer(
-            "⚠️ Не удалось скачать файл.\n\n"
-            "Попробуй отправить его ещё раз."
+            "⚠️ Не удалось скачать файл.\n\nПопробуй отправить его ещё раз."
         )
         return
 
@@ -496,42 +433,29 @@ async def solution_file_handler(
             len(raw_code),
         )
 
-        await message.answer(
-            "❌ Файл слишком большой.\n"
-            "Максимальный размер: 200 KB."
-        )
+        await message.answer("❌ Файл слишком большой.\nМаксимальный размер: 200 KB.")
         return
 
     try:
-        source_code = raw_code.decode(
-            "utf-8-sig"
-        )
+        source_code = raw_code.decode("utf-8-sig")
 
     except UnicodeDecodeError:
         await message.answer(
-            "❌ Не удалось прочитать файл.\n"
-            "Сохрани его в UTF-8 "
-            "и отправь снова.",
-            reply_markup=get_cancel_submission_keyboard(
-                project_id
-            ),
+            "❌ Не удалось прочитать файл.\nСохрани его в UTF-8 и отправь снова.",
+            reply_markup=get_cancel_submission_keyboard(project_id),
         )
         return
 
     if not source_code.strip():
         await message.answer(
             "❌ Файл пустой.",
-            reply_markup=get_cancel_submission_keyboard(
-                project_id
-            ),
+            reply_markup=get_cancel_submission_keyboard(project_id),
         )
         return
 
     try:
         attempt = await create_attempt(
-            telegram_user_id=(
-                message.from_user.id
-            ),
+            telegram_user_id=(message.from_user.id),
             project_id=project_id,
             filename=filename,
             source_code=source_code,
@@ -541,27 +465,20 @@ async def solution_file_handler(
         await state.clear()
 
         await message.answer(
-            "🤖 Лимит AI-проверок "
-            "для этого Project исчерпан: "
-            "<b>5 из 5</b>."
+            "🤖 Лимит AI-проверок для этого Project исчерпан: <b>5 из 5</b>."
         )
         return
 
     except AttemptAlreadyPending:
         await state.clear()
 
-        await message.answer(
-            "⏳ У тебя уже есть решение "
-            "на проверке."
-        )
+        await message.answer("⏳ У тебя уже есть решение на проверке.")
         return
 
     except AttemptError:
         await state.clear()
 
-        await message.answer(
-            "Не удалось сохранить решение."
-        )
+        await message.answer("Не удалось сохранить решение.")
         return
 
     project = await get_project_card(
@@ -573,9 +490,7 @@ async def solution_file_handler(
         await mark_attempt_setup_error(
             attempt_id=attempt.id,
             error_message=(
-                "Не удалось подготовить "
-                "проверку решения: "
-                "Project не найден."
+                "Не удалось подготовить проверку решения: Project не найден."
             ),
         )
 
@@ -588,11 +503,9 @@ async def solution_file_handler(
         )
         return
 
-    project_text, project_keyboard = (
-        render_project_card(
-            project,
-            active_subscription=active,
-        )
+    project_text, project_keyboard = render_project_card(
+        project,
+        active_subscription=active,
     )
 
     status_message = None
@@ -630,17 +543,13 @@ async def solution_file_handler(
             await mark_attempt_setup_error(
                 attempt_id=attempt.id,
                 error_message=(
-                    "Не удалось подготовить "
-                    "Telegram-сообщение "
-                    "для результата проверки."
+                    "Не удалось подготовить Telegram-сообщение для результата проверки."
                 ),
             )
 
         except Exception:
             logger.exception(
-                "Failed to mark attempt "
-                "setup error "
-                "attempt_id=%s",
+                "Failed to mark attempt setup error attempt_id=%s",
                 attempt.id,
             )
 
@@ -654,11 +563,7 @@ async def solution_file_handler(
                         "Отправь файл ещё раз "
                         "или нажми «Отмена»."
                     ),
-                    reply_markup=(
-                        get_cancel_submission_keyboard(
-                            project_id
-                        )
-                    ),
+                    reply_markup=(get_cancel_submission_keyboard(project_id)),
                 )
 
             except Exception:
@@ -675,9 +580,7 @@ async def solution_file_handler(
     await state.clear()
 
 
-@router.message(
-    SolutionStates.waiting_for_file
-)
+@router.message(SolutionStates.waiting_for_file)
 async def wrong_solution_message_handler(
     message: Message,
     state: FSMContext,
@@ -689,17 +592,10 @@ async def wrong_solution_message_handler(
     if not isinstance(project_id, int):
         await state.clear()
 
-        await message.answer(
-            "Не удалось определить проект. "
-            "Выбери его заново."
-        )
+        await message.answer("Не удалось определить проект. Выбери его заново.")
         return
 
     await message.answer(
-        "Отправь Python-файл "
-        "<code>.py</code> или нажми "
-        "«Отмена».",
-        reply_markup=get_cancel_submission_keyboard(
-            project_id
-        ),
+        "Отправь Python-файл <code>.py</code> или нажми «Отмена».",
+        reply_markup=get_cancel_submission_keyboard(project_id),
     )

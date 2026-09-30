@@ -33,15 +33,10 @@ def parse_local_datetime_to_utc(
         raise InvalidDateTimeFormat from error
 
     try:
-        timezone = ZoneInfo(
-            timezone_name
-        )
+        timezone = ZoneInfo(timezone_name)
 
     except ZoneInfoNotFoundError as error:
-        raise RuntimeError(
-            "Неизвестный часовой пояс: "
-            f"{timezone_name}"
-        ) from error
+        raise RuntimeError(f"Неизвестный часовой пояс: {timezone_name}") from error
 
     valid_datetimes: list[datetime] = []
 
@@ -51,20 +46,10 @@ def parse_local_datetime_to_utc(
             fold=fold,
         )
 
-        roundtrip = (
-            local_datetime
-            .astimezone(UTC)
-            .astimezone(timezone)
-        )
+        roundtrip = local_datetime.astimezone(UTC).astimezone(timezone)
 
-        if (
-            roundtrip.replace(tzinfo=None)
-            == naive
-            and roundtrip.fold == fold
-        ):
-            valid_datetimes.append(
-                local_datetime
-            )
+        if roundtrip.replace(tzinfo=None) == naive and roundtrip.fold == fold:
+            valid_datetimes.append(local_datetime)
 
     if not valid_datetimes:
         raise NonexistentLocalTime
@@ -72,6 +57,4 @@ def parse_local_datetime_to_utc(
     if len(valid_datetimes) > 1:
         raise AmbiguousLocalTime
 
-    return valid_datetimes[0].astimezone(
-        UTC
-    )
+    return valid_datetimes[0].astimezone(UTC)

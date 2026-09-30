@@ -22,15 +22,10 @@ _SUBSCRIPTION_PLANS = (
 )
 
 
-PLANS = {
-    plan.course_slug: plan
-    for plan in _SUBSCRIPTION_PLANS
-}
+PLANS = {plan.course_slug: plan for plan in _SUBSCRIPTION_PLANS}
 
 
 def get_subscription_plan(
     course_slug: str,
 ) -> SubscriptionPlan | None:
-    return PLANS.get(
-        course_slug
-    )
+    return PLANS.get(course_slug)

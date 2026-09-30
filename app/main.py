@@ -50,9 +50,7 @@ logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
-    logger.info(
-        "Starting application"
-    )
+    logger.info("Starting application")
 
     bot = Bot(
         token=get_bot_token(),
@@ -66,104 +64,54 @@ async def main() -> None:
         key_builder=DefaultKeyBuilder(
             prefix="python_practice_bot:v1",
         ),
-        state_ttl=timedelta(
-            hours=24
-        ),
-        data_ttl=timedelta(
-            hours=24
-        ),
+        state_ttl=timedelta(hours=24),
+        data_ttl=timedelta(hours=24),
     )
 
     await storage.redis.ping()
 
-    scheduler_task = asyncio.create_task(
-        run_publishing_scheduler(
-            bot
-        )
+    scheduler_task = asyncio.create_task(run_publishing_scheduler(bot))
+
+    attempt_worker_task = asyncio.create_task(run_attempt_check_worker(bot))
+
+    payment_recovery_task = asyncio.create_task(run_payment_recovery())
+
+    subscription_access_task = asyncio.create_task(
+        run_subscription_access_scheduler(bot)
     )
 
-    attempt_worker_task = asyncio.create_task(
-        run_attempt_check_worker(
-            bot
-        )
-    )
+    dispatcher = Dispatcher(storage=storage)
 
-    payment_recovery_task = asyncio.create_task(
-        run_payment_recovery()
-    )
+    dispatcher.errors.register(global_error_handler)
 
-    subscription_access_task = (
-        asyncio.create_task(
-            run_subscription_access_scheduler(
-                bot
-            )
-        )
-    )
+    dispatcher.include_router(payments_router)
 
-    dispatcher = Dispatcher(
-        storage=storage
-    )
+    dispatcher.include_router(subscription_router)
 
-    dispatcher.errors.register(
-        global_error_handler
-    )
+    dispatcher.include_router(channel_access_router)
 
-    dispatcher.include_router(
-        payments_router
-    )
+    dispatcher.include_router(start_router)
 
-    dispatcher.include_router(
-        subscription_router
-    )
+    dispatcher.include_router(admin_router)
 
-    dispatcher.include_router(
-        channel_access_router
-    )
+    dispatcher.include_router(courses_router)
 
-    dispatcher.include_router(
-        start_router
-    )
+    dispatcher.include_router(attempts_router)
 
-    dispatcher.include_router(
-        admin_router
-    )
+    dispatcher.include_router(projects_router)
 
-    dispatcher.include_router(
-        courses_router
-    )
+    dispatcher.include_router(hints_router)
 
-    dispatcher.include_router(
-        attempts_router
-    )
+    dispatcher.include_router(progress_router)
 
-    dispatcher.include_router(
-        projects_router
-    )
+    dispatcher.include_router(xp_router)
 
-    dispatcher.include_router(
-        hints_router
-    )
+    dispatcher.include_router(menu_router)
 
-    dispatcher.include_router(
-        progress_router
-    )
-
-    dispatcher.include_router(
-        xp_router
-    )
-
-    dispatcher.include_router(
-        menu_router
-    )
-
-    await bot.delete_webhook(
-        drop_pending_updates=False
-    )
+    await bot.delete_webhook(drop_pending_updates=False)
 
     try:
-        await dispatcher.start_polling(
-            bot
-        )
+        await dispatcher.start_polling(bot)
 
     finally:
         scheduler_task.cancel()
@@ -191,9 +139,7 @@ async def main() -> None:
         except asyncio.CancelledError:
             pass
 
-        logger.info(
-            "Shutting down application"
-        )
+        logger.info("Shutting down application")
 
         await storage.close()
         await close_ai_client()
@@ -202,6 +148,4 @@ async def main() -> None:
 
 if __name__ == "__main__":
     setup_logging()
-    asyncio.run(
-        main()
-    )
+    asyncio.run(main())

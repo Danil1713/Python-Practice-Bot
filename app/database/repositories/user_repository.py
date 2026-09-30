@@ -42,76 +42,49 @@ class UserRepository:
         self,
         telegram_id: int,
     ) -> User | None:
-        statement = select(User).where(
-            User.telegram_id == telegram_id
-        )
+        statement = select(User).where(User.telegram_id == telegram_id)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def get_by_id(
-            self,
-            user_id: int,
+        self,
+        user_id: int,
     ) -> User | None:
-        statement = select(User).where(
-            User.id == user_id
-        )
+        statement = select(User).where(User.id == user_id)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def search(
-            self,
-            value: str,
+        self,
+        value: str,
     ) -> list[User]:
         clean_value = value.strip().lstrip("@")
 
         conditions = []
 
         if clean_value.isdigit():
-            conditions.append(
-                User.telegram_id == int(clean_value)
-            )
+            conditions.append(User.telegram_id == int(clean_value))
         else:
-            conditions.append(
-                User.username.ilike(
-                    clean_value
-                )
-            )
+            conditions.append(User.username.ilike(clean_value))
 
-        statement = (
-            select(User)
-            .where(
-                or_(*conditions)
-            )
-            .order_by(User.id)
-            .limit(20)
-        )
+        statement = select(User).where(or_(*conditions)).order_by(User.id).limit(20)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def set_ai_review_consent(
-            self,
-            *,
-            telegram_id: int,
-            version: str,
-            accepted_at: datetime,
+        self,
+        *,
+        telegram_id: int,
+        version: str,
+        accepted_at: datetime,
     ) -> bool:
-        user = await self.get_by_telegram_id(
-            telegram_id
-        )
+        user = await self.get_by_telegram_id(telegram_id)
 
         if user is None:
             return False
@@ -122,14 +95,12 @@ class UserRepository:
         return True
 
     async def set_current_course_id(
-            self,
-            *,
-            telegram_id: int,
-            course_id: int | None,
+        self,
+        *,
+        telegram_id: int,
+        course_id: int | None,
     ) -> bool:
-        user = await self.get_by_telegram_id(
-            telegram_id
-        )
+        user = await self.get_by_telegram_id(telegram_id)
 
         if user is None:
             return False

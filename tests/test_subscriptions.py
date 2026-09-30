@@ -29,18 +29,11 @@ from app.services.subscription_service import (
 async def test_concurrent_subscription_extensions_are_not_lost():
     suffix = uuid4().hex[:12]
 
-    telegram_id = (
-            8_000_000_000_000
-            + uuid4().int % 1_000_000_000_000
-    )
+    telegram_id = 8_000_000_000_000 + uuid4().int % 1_000_000_000_000
 
-    database_url = os.environ[
-        "DATABASE_URL"
-    ]
+    database_url = os.environ["DATABASE_URL"]
 
-    engine = create_async_engine(
-        database_url
-    )
+    engine = create_async_engine(database_url)
 
     session_factory = async_sessionmaker(
         bind=engine,
@@ -49,21 +42,14 @@ async def test_concurrent_subscription_extensions_are_not_lost():
     )
 
     try:
-        now = datetime.now(
-            timezone.utc
-        )
+        now = datetime.now(timezone.utc)
 
-        initial_ends_at = (
-            now
-            + timedelta(days=10)
-        )
+        initial_ends_at = now + timedelta(days=10)
 
         async with session_factory() as session:
             user = User(
                 telegram_id=telegram_id,
-                username=(
-                    f"subscription_test_{suffix}"
-                ),
+                username=(f"subscription_test_{suffix}"),
                 first_name="Test",
             )
 
@@ -96,13 +82,11 @@ async def test_concurrent_subscription_extensions_are_not_lost():
 
         async def extend_once() -> None:
             async with session_factory() as session:
-                await (
-                    activate_or_extend_subscription_in_session(
-                        session=session,
-                        user_id=user_id,
-                        course_id=course_id,
-                        days=30,
-                    )
+                await activate_or_extend_subscription_in_session(
+                    session=session,
+                    user_id=user_id,
+                    course_id=course_id,
+                    days=30,
                 )
 
                 await session.commit()
@@ -113,35 +97,20 @@ async def test_concurrent_subscription_extensions_are_not_lost():
         )
 
         async with session_factory() as session:
-            statement = select(
-                Subscription
-            ).where(
+            statement = select(Subscription).where(
                 Subscription.user_id == user_id,
                 Subscription.course_id == course_id,
             )
 
-            result = await session.execute(
-                statement
-            )
+            result = await session.execute(statement)
 
-            stored_subscription = (
-                result.scalar_one()
-            )
+            stored_subscription = result.scalar_one()
 
-            expected_ends_at = (
-                initial_ends_at
-                + timedelta(days=60)
-            )
+            expected_ends_at = initial_ends_at + timedelta(days=60)
 
-            assert (
-                stored_subscription.status
-                == "active"
-            )
+            assert stored_subscription.status == "active"
 
-            assert (
-                stored_subscription.ends_at
-                == expected_ends_at
-            )
+            assert stored_subscription.ends_at == expected_ends_at
 
     finally:
         await engine.dispose()

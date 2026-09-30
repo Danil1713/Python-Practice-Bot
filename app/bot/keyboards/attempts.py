@@ -54,10 +54,7 @@ def get_attempts_keyboard(
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text=(
-                        f"{icon} Попытка "
-                        f"№{attempt.number}"
-                    ),
+                    text=(f"{icon} Попытка №{attempt.number}"),
                     callback_data=build_callback_data(
                         "attempt",
                         "open",
@@ -80,9 +77,7 @@ def get_attempts_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=buttons
-    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_attempt_detail_keyboard(
@@ -123,6 +118,7 @@ def get_attempt_detail_keyboard(
             ],
         ]
     )
+
 
 def get_ai_review_consent_keyboard(
     project_id: int,

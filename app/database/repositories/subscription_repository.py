@@ -22,9 +22,7 @@ class SubscriptionRepository:
     ) -> Subscription | None:
         now = datetime.now(timezone.utc)
 
-        statement = select(
-            Subscription
-        ).where(
+        statement = select(Subscription).where(
             Subscription.user_id == user_id,
             Subscription.course_id == course_id,
             Subscription.status == "active",
@@ -32,64 +30,50 @@ class SubscriptionRepository:
             Subscription.ends_at > now,
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def get_by_user_and_course(
-            self,
-            user_id: int,
-            course_id: int,
+        self,
+        user_id: int,
+        course_id: int,
     ) -> Subscription | None:
-        statement = select(
-            Subscription
-        ).where(
+        statement = select(Subscription).where(
             Subscription.user_id == user_id,
             Subscription.course_id == course_id,
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def save(
-            self,
-            subscription: Subscription,
+        self,
+        subscription: Subscription,
     ) -> None:
         self.session.add(subscription)
 
         await self.session.flush()
 
     async def get_all_for_user(
-            self,
-            user_id: int,
+        self,
+        user_id: int,
     ) -> list[Subscription]:
         statement = (
             select(Subscription)
-            .where(
-                Subscription.user_id == user_id
-            )
-            .order_by(
-                Subscription.created_at.desc()
-            )
+            .where(Subscription.user_id == user_id)
+            .order_by(Subscription.created_at.desc())
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def lock_subscription(
-            self,
-            user_id: int,
-            course_id: int,
+        self,
+        user_id: int,
+        course_id: int,
     ) -> None:
         statement = select(
             func.pg_advisory_xact_lock(
@@ -98,6 +82,4 @@ class SubscriptionRepository:
             )
         )
 
-        await self.session.execute(
-            statement
-        )
+        await self.session.execute(statement)

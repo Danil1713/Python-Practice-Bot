@@ -9,11 +9,7 @@ from app.utils.telegram_text import (
 def test_short_text_is_not_split():
     text = "Hello"
 
-    assert split_telegram_text(
-        text
-    ) == [
-        "Hello"
-    ]
+    assert split_telegram_text(text) == ["Hello"]
 
 
 def test_long_text_is_split():
@@ -26,38 +22,26 @@ def test_long_text_is_split():
 
     assert len(chunks) == 3
 
-    assert all(
-        len(chunk) <= 3000
-        for chunk in chunks
-    )
+    assert all(len(chunk) <= 3000 for chunk in chunks)
 
     assert "".join(chunks) == text
 
 
 def test_prefers_newline_boundary():
-    text = (
-        "a" * 100
-        + "\n"
-        + "b" * 100
-    )
+    text = "a" * 100 + "\n" + "b" * 100
 
     chunks = split_telegram_text(
         text,
         max_chars=150,
     )
 
-    assert chunks[0] == (
-        "a" * 100
-        + "\n"
-    )
+    assert chunks[0] == ("a" * 100 + "\n")
 
     assert "".join(chunks) == text
 
 
 def test_empty_text_returns_empty_list():
-    assert split_telegram_text(
-        ""
-    ) == []
+    assert split_telegram_text("") == []
 
 
 def test_invalid_limit_is_rejected():
@@ -72,11 +56,7 @@ def test_invalid_limit_is_rejected():
 
 
 def test_telegram_lines_stay_under_limit():
-    lines = [
-        f"Project {index} — "
-        + "a" * 100
-        for index in range(100)
-    ]
+    lines = [f"Project {index} — " + "a" * 100 for index in range(100)]
 
     chunks = split_telegram_lines(
         lines,
@@ -85,16 +65,9 @@ def test_telegram_lines_stay_under_limit():
 
     assert len(chunks) > 1
 
-    assert all(
-        len(chunk) <= 500
-        for chunk in chunks
-    )
+    assert all(len(chunk) <= 500 for chunk in chunks)
 
-    assert "\n".join(
-        chunks
-    ) == "\n".join(
-        lines
-    )
+    assert "\n".join(chunks) == "\n".join(lines)
 
 
 def test_short_lines_are_not_split():
@@ -104,12 +77,4 @@ def test_short_lines_are_not_split():
         "Line 3",
     ]
 
-    assert split_telegram_lines(
-        lines
-    ) == [
-        (
-            "Line 1\n"
-            "Line 2\n"
-            "Line 3"
-        )
-    ]
+    assert split_telegram_lines(lines) == [("Line 1\nLine 2\nLine 3")]

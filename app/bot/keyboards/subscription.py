@@ -40,10 +40,7 @@ def get_subscription_keyboard(
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=(
-                        f"⭐ Купить за "
-                        f"{stars_price} Stars"
-                    ),
+                    text=(f"⭐ Купить за {stars_price} Stars"),
                     callback_data=build_callback_data(
                         "payment",
                         "stars",
@@ -58,10 +55,7 @@ def get_subscription_keyboard(
             [
                 InlineKeyboardButton(
                     text="💬 Купить вручную",
-                    url=(
-                        f"https://t.me/"
-                        f"{admin_username}"
-                    ),
+                    url=(f"https://t.me/{admin_username}"),
                 )
             ]
         )
@@ -92,24 +86,18 @@ def get_subscription_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows
-    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
 
 def format_subscription_datetime(
     value: datetime,
 ) -> str:
-    timezone = ZoneInfo(
-        get_app_timezone()
-    )
+    timezone = ZoneInfo(get_app_timezone())
 
-    local_value = value.astimezone(
-        timezone
-    )
+    local_value = value.astimezone(timezone)
 
-    return local_value.strftime(
-        "%d.%m.%Y %H:%M"
-    )
+    return local_value.strftime("%d.%m.%Y %H:%M")
+
 
 def get_stars_invoice_keyboard(
     payment_id: int,
@@ -136,6 +124,7 @@ def get_stars_invoice_keyboard(
             ],
         ]
     )
+
 
 def get_payment_support_keyboard(
     course_slug: str | None = None,
@@ -165,9 +154,7 @@ def get_payment_support_keyboard(
             ]
         )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows
-    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def get_channel_join_keyboard(

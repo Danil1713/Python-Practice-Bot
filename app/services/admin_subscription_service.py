@@ -29,6 +29,7 @@ class UserNotFound(AdminSubscriptionError):
 class CourseNotFound(AdminSubscriptionError):
     pass
 
+
 MAX_ADMIN_SUBSCRIPTION_DAYS = 3650
 
 
@@ -50,16 +51,12 @@ class SubscriptionResult:
 
 
 async def search_users(
-        value: str,
+    value: str,
 ) -> list[AdminUserItem]:
     async with async_session_factory() as session:
-        repository = UserRepository(
-            session
-        )
+        repository = UserRepository(session)
 
-        users = await repository.search(
-            value
-        )
+        users = await repository.search(value)
 
         return [
             AdminUserItem(
@@ -71,6 +68,7 @@ async def search_users(
             for user in users
         ]
 
+
 async def activate_or_extend_subscription(
     *,
     user_id: int,
@@ -80,66 +78,41 @@ async def activate_or_extend_subscription(
     idempotency_key: str,
 ) -> SubscriptionResult:
     if days <= 0:
-        raise AdminSubscriptionError(
-            "Количество дней должно быть больше 0."
-        )
+        raise AdminSubscriptionError("Количество дней должно быть больше 0.")
 
     if days > MAX_ADMIN_SUBSCRIPTION_DAYS:
         raise AdminSubscriptionError(
-            "Нельзя выдать подписку "
-            f"больше чем на "
-            f"{MAX_ADMIN_SUBSCRIPTION_DAYS} дней."
+            f"Нельзя выдать подписку больше чем на {MAX_ADMIN_SUBSCRIPTION_DAYS} дней."
         )
 
     async with async_session_factory() as session:
-        user_repository = UserRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
+        user_repository = UserRepository(session)
+        course_repository = CourseRepository(session)
 
-        user = await user_repository.get_by_id(
-            user_id
-        )
+        user = await user_repository.get_by_id(user_id)
 
         if user is None:
-            raise UserNotFound(
-                "Пользователь не найден."
-            )
+            raise UserNotFound("Пользователь не найден.")
 
-        course = await course_repository.get_by_id(
-            course_id
-        )
+        course = await course_repository.get_by_id(course_id)
 
         if course is None:
-            raise CourseNotFound(
-                "Курс не найден."
-            )
+            raise CourseNotFound("Курс не найден.")
 
         if not course.requires_subscription:
-            raise AdminSubscriptionError(
-                "Для этого курса подписка "
-                "не требуется."
-            )
+            raise AdminSubscriptionError("Для этого курса подписка не требуется.")
 
-        subscription = (
-            await activate_or_extend_subscription_in_session(
-                session=session,
-                user_id=user.id,
-                course_id=course.id,
-                days=days,
-                audit=SubscriptionAuditContext(
-                    actor_telegram_id=(
-                        actor_telegram_id
-                    ),
-                    source="admin",
-                    reason="manual_admin_grant",
-                    idempotency_key=(
-                        idempotency_key
-                    ),
-                ),
-            )
+        subscription = await activate_or_extend_subscription_in_session(
+            session=session,
+            user_id=user.id,
+            course_id=course.id,
+            days=days,
+            audit=SubscriptionAuditContext(
+                actor_telegram_id=(actor_telegram_id),
+                source="admin",
+                reason="manual_admin_grant",
+                idempotency_key=(idempotency_key),
+            ),
         )
 
         await session.commit()
@@ -152,6 +125,7 @@ async def activate_or_extend_subscription(
             status=subscription.status,
         )
 
+
 async def activate_or_extend_subscription_by_slug(
     *,
     user_id: int,
@@ -161,18 +135,12 @@ async def activate_or_extend_subscription_by_slug(
     idempotency_key: str,
 ) -> SubscriptionResult:
     async with async_session_factory() as session:
-        course_repository = CourseRepository(
-            session
-        )
+        course_repository = CourseRepository(session)
 
-        course = await course_repository.get_by_slug(
-            course_slug
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
-            raise CourseNotFound(
-                "Курс не найден."
-            )
+            raise CourseNotFound("Курс не найден.")
 
         course_id = course.id
 

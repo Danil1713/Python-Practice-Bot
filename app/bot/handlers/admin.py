@@ -30,9 +30,7 @@ from app.services.course_service import get_course_by_slug
 router = Router()
 
 
-@router.callback_query(
-    F.data.startswith("admin:menu:")
-)
+@router.callback_query(F.data.startswith("admin:menu:"))
 async def admin_menu_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -54,9 +52,7 @@ async def admin_menu_handler(
         )
         return
 
-    course = await get_course_by_slug(
-        course_slug
-    )
+    course = await get_course_by_slug(course_slug)
 
     if course is None:
         await callback.answer(
@@ -72,28 +68,16 @@ async def admin_menu_handler(
             "Здесь можно управлять "
             "публикациями курса."
         ),
-        reply_markup=get_admin_menu_keyboard(
-            course_slug,
-            course.requires_subscription
-        ),
+        reply_markup=get_admin_menu_keyboard(course_slug, course.requires_subscription),
     )
 
     await callback.answer()
 
 
+router.include_router(admin_post_creation_router)
 
-router.include_router(
-    admin_post_creation_router
-)
+router.include_router(admin_posts_router)
 
-router.include_router(
-    admin_posts_router
-)
+router.include_router(admin_subscriptions_router)
 
-router.include_router(
-    admin_subscriptions_router
-)
-
-router.include_router(
-    admin_payments_router
-)
+router.include_router(admin_payments_router)

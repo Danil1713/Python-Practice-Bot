@@ -20,20 +20,12 @@ class HintRepository:
         project_id: int,
     ) -> list[Hint]:
         statement = (
-            select(Hint)
-            .where(
-                Hint.project_id == project_id
-            )
-            .order_by(Hint.number)
+            select(Hint).where(Hint.project_id == project_id).order_by(Hint.number)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def get_unpublished_by_project(
         self,
@@ -48,25 +40,17 @@ class HintRepository:
             .order_by(Hint.number)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def get_by_id(
         self,
         hint_id: int,
     ) -> Hint | None:
-        statement = select(Hint).where(
-            Hint.id == hint_id
-        )
+        statement = select(Hint).where(Hint.id == hint_id)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
@@ -87,9 +71,7 @@ class HintRepository:
             .limit(1)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
@@ -104,9 +86,7 @@ class HintRepository:
             )
         )
 
-        await self.session.execute(
-            statement
-        )
+        await self.session.execute(statement)
 
     async def get_next_number(
         self,
@@ -117,13 +97,9 @@ class HintRepository:
                 func.max(Hint.number),
                 0,
             )
-        ).where(
-            Hint.project_id == project_id
-        )
+        ).where(Hint.project_id == project_id)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         current_max = result.scalar_one()
 
@@ -154,8 +130,6 @@ class HintRepository:
         telegram_message_id: int,
     ) -> None:
         hint.published_at = published_at
-        hint.telegram_message_id = (
-            telegram_message_id
-        )
+        hint.telegram_message_id = telegram_message_id
 
         await self.session.flush()

@@ -24,14 +24,8 @@ async def check_admin(
 def format_admin_datetime(
     value: datetime,
 ) -> str:
-    timezone = ZoneInfo(
-        get_app_timezone()
-    )
+    timezone = ZoneInfo(get_app_timezone())
 
-    local_value = value.astimezone(
-        timezone
-    )
+    local_value = value.astimezone(timezone)
 
-    return local_value.strftime(
-        "%d.%m.%Y %H:%M"
-    )
+    return local_value.strftime("%d.%m.%Y %H:%M")

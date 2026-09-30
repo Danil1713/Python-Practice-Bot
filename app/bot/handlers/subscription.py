@@ -21,9 +21,8 @@ from app.services.subscription_service import (
 
 router = Router()
 
-@router.callback_query(
-    F.data.startswith("menu:subscription:")
-)
+
+@router.callback_query(F.data.startswith("menu:subscription:"))
 async def subscription_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -40,8 +39,8 @@ async def subscription_handler(
         return
 
     if not await check_current_course(
-            callback,
-            course_slug,
+        callback,
+        course_slug,
     ):
         return
 
@@ -57,19 +56,12 @@ async def subscription_handler(
         )
         return
 
-    course_title = escape(
-        view.course_title
-    )
+    course_title = escape(view.course_title)
 
-    plan = get_subscription_plan(
-        course_slug
-    )
+    plan = get_subscription_plan(course_slug)
 
     if not view.requires_subscription:
-        text = (
-            f"🎁 <b>{course_title}</b>\n\n"
-            "Этот уровень доступен бесплатно."
-        )
+        text = f"🎁 <b>{course_title}</b>\n\nЭтот уровень доступен бесплатно."
 
     elif view.status == "active":
         text = (
@@ -81,10 +73,7 @@ async def subscription_handler(
         )
 
     elif view.status == "expired":
-        text = (
-            "⌛ <b>Подписка закончилась</b>\n\n"
-            f"Курс: <b>{course_title}</b>\n"
-        )
+        text = f"⌛ <b>Подписка закончилась</b>\n\nКурс: <b>{course_title}</b>\n"
 
         if view.ends_at is not None:
             text += (
@@ -93,10 +82,7 @@ async def subscription_handler(
                 f"</b>\n\n"
             )
 
-        text += (
-            "Прогресс, XP и история попыток "
-            "сохранены."
-        )
+        text += "Прогресс, XP и история попыток сохранены."
 
     else:
         text = (
@@ -110,19 +96,9 @@ async def subscription_handler(
         text=text,
         reply_markup=get_subscription_keyboard(
             course_slug=course_slug,
-            can_pay=(
-                    view.requires_subscription
-                    and plan is not None
-            ),
-            can_open_channel=(
-                    view.status == "active"
-                    and view.has_channel
-            ),
-            stars_price=(
-                plan.stars_price
-                if plan is not None
-                else None
-            ),
+            can_pay=(view.requires_subscription and plan is not None),
+            can_open_channel=(view.status == "active" and view.has_channel),
+            stars_price=(plan.stars_price if plan is not None else None),
             admin_username=get_admin_username(),
         ),
     )

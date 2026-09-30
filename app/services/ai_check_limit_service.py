@@ -36,29 +36,17 @@ async def get_ai_check_usage(
     project_id: int,
 ) -> AICheckUsage | None:
     async with async_session_factory() as session:
-        user_repository = UserRepository(
-            session
-        )
-        attempt_repository = AttemptRepository(
-            session
-        )
+        user_repository = UserRepository(session)
+        attempt_repository = AttemptRepository(session)
 
-        user = (
-            await user_repository
-            .get_by_telegram_id(
-                telegram_user_id
-            )
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         if user is None:
             return None
 
-        used = (
-            await attempt_repository
-            .count_ai_checks(
-                user_id=user.id,
-                project_id=project_id,
-            )
+        used = await attempt_repository.count_ai_checks(
+            user_id=user.id,
+            project_id=project_id,
         )
 
         return AICheckUsage(

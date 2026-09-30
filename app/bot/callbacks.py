@@ -15,28 +15,17 @@ def parse_callback_parts(
     prefix_parts = prefix.split(":")
     parts = data.split(":")
 
-    expected_count = (
-        len(prefix_parts)
-        + count
-    )
+    expected_count = len(prefix_parts) + count
 
     if len(parts) != expected_count:
         return None
 
-    if (
-        parts[:len(prefix_parts)]
-        != prefix_parts
-    ):
+    if parts[: len(prefix_parts)] != prefix_parts:
         return None
 
-    values = tuple(
-        parts[len(prefix_parts):]
-    )
+    values = tuple(parts[len(prefix_parts) :])
 
-    if any(
-        not value
-        for value in values
-    ):
+    if any(not value for value in values):
         return None
 
     return values
@@ -70,9 +59,7 @@ def parse_callback_int(
     if parts is None:
         return None
 
-    return parse_positive_int(
-        parts[0]
-    )
+    return parse_positive_int(parts[0])
 
 
 def parse_callback_str(
@@ -104,14 +91,13 @@ def parse_callback_int_str(
     if parts is None:
         return None
 
-    number = parse_positive_int(
-        parts[0]
-    )
+    number = parse_positive_int(parts[0])
 
     if number is None:
         return None
 
     return number, parts[1]
+
 
 class CallbackDataError(ValueError):
     pass
@@ -120,47 +106,24 @@ class CallbackDataError(ValueError):
 def build_callback_data(
     *parts: str | int,
 ) -> str:
-    values = tuple(
-        str(part)
-        for part in parts
-    )
+    values = tuple(str(part) for part in parts)
 
     if not values:
-        raise CallbackDataError(
-            "Callback data не содержит частей."
-        )
+        raise CallbackDataError("Callback data не содержит частей.")
 
-    if any(
-        not value
-        for value in values
-    ):
-        raise CallbackDataError(
-            "Callback data содержит "
-            "пустую часть."
-        )
+    if any(not value for value in values):
+        raise CallbackDataError("Callback data содержит пустую часть.")
 
-    if any(
-        ":" in value
-        for value in values
-    ):
-        raise CallbackDataError(
-            "Часть callback data "
-            "не должна содержать ':'."
-        )
+    if any(":" in value for value in values):
+        raise CallbackDataError("Часть callback data не должна содержать ':'.")
 
-    data = ":".join(
-        values
-    )
+    data = ":".join(values)
 
-    size = len(
-        data.encode("utf-8")
-    )
+    size = len(data.encode("utf-8"))
 
     if size > MAX_CALLBACK_DATA_BYTES:
         raise CallbackDataError(
-            "Callback data превышает "
-            f"{MAX_CALLBACK_DATA_BYTES} байт: "
-            f"{size}."
+            f"Callback data превышает {MAX_CALLBACK_DATA_BYTES} байт: {size}."
         )
 
     return data

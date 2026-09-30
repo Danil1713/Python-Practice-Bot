@@ -27,10 +27,7 @@ class Attempt(Base):
             name="uq_attempts_user_project_number",
         ),
         CheckConstraint(
-            "status IN "
-            "('pending', 'checking', "
-            "'passed', 'failed', "
-            "'review', 'error')",
+            "status IN ('pending', 'checking', 'passed', 'failed', 'review', 'error')",
             name="ck_attempts_status",
         ),
         CheckConstraint(

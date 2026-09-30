@@ -106,14 +106,11 @@ async def seed() -> None:
     async with async_session_factory() as session:
         course_repository = CourseRepository(session)
 
-        demo = await course_repository.get_by_slug(
-            "demo"
-        )
+        demo = await course_repository.get_by_slug("demo")
 
         if demo is None:
             raise RuntimeError(
-                "Demo course не найден. "
-                "Сначала выполни alembic upgrade head."
+                "Demo course не найден. Сначала выполни alembic upgrade head."
             )
 
         now = datetime.now(timezone.utc)
@@ -157,9 +154,7 @@ async def seed() -> None:
                     set_={
                         "title": project["title"],
                         "max_xp": project["max_xp"],
-                        "ai_requirements": project[
-                            "ai_requirements"
-                        ],
+                        "ai_requirements": project["ai_requirements"],
                     },
                 )
             )
@@ -168,20 +163,11 @@ async def seed() -> None:
 
         await session.commit()
 
-        project_repository = ProjectRepository(
-            session
-        )
+        project_repository = ProjectRepository(session)
 
-        demo_projects = (
-            await project_repository.get_by_course(
-                demo.id
-            )
-        )
+        demo_projects = await project_repository.get_by_course(demo.id)
 
-        projects_by_number = {
-            project.number: project
-            for project in demo_projects
-        }
+        projects_by_number = {project.number: project for project in demo_projects}
 
         hints = [
             # Mini Casino
@@ -203,7 +189,6 @@ async def seed() -> None:
                 "xp_after_publish": 40,
                 "published_at": now,
             },
-
             # Smart File Sorter
             {
                 "project_id": projects_by_number[2].id,
@@ -254,9 +239,7 @@ async def seed() -> None:
                         Hint.number,
                     ],
                     set_={
-                        "xp_after_publish": hint[
-                            "xp_after_publish"
-                        ],
+                        "xp_after_publish": hint["xp_after_publish"],
                     },
                 )
             )
@@ -270,9 +253,7 @@ async def main() -> None:
     try:
         await seed()
 
-        print(
-            "Initial Demo data created."
-        )
+        print("Initial Demo data created.")
 
     finally:
         await engine.dispose()

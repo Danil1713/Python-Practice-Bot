@@ -9,14 +9,7 @@ def build_channel_message_url(
 
     internal_channel_id = raw_channel_id[4:]
 
-    if (
-        not internal_channel_id.isdigit()
-        or message_id <= 0
-    ):
+    if not internal_channel_id.isdigit() or message_id <= 0:
         return None
 
-    return (
-        "https://t.me/c/"
-        f"{internal_channel_id}/"
-        f"{message_id}"
-    )
+    return f"https://t.me/c/{internal_channel_id}/{message_id}"

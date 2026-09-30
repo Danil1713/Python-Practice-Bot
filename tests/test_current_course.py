@@ -19,14 +19,9 @@ from app.services.user_service import (
 async def test_current_course_is_persisted():
     suffix = uuid4().hex[:12]
 
-    telegram_id = (
-        8_100_000_000_000
-        + uuid4().int % 1_000_000_000_000
-    )
+    telegram_id = 8_100_000_000_000 + uuid4().int % 1_000_000_000_000
 
-    course_slug = (
-        f"current_course_{suffix}"
-    )
+    course_slug = f"current_course_{suffix}"
 
     async with async_session_factory() as session:
         user = User(
@@ -51,12 +46,7 @@ async def test_current_course_is_persisted():
 
         await session.commit()
 
-    assert (
-        await get_current_course_slug(
-            telegram_id
-        )
-        is None
-    )
+    assert await get_current_course_slug(telegram_id) is None
 
     selected = await set_current_course(
         telegram_id=telegram_id,
@@ -65,12 +55,7 @@ async def test_current_course_is_persisted():
 
     assert selected is True
 
-    assert (
-        await get_current_course_slug(
-            telegram_id
-        )
-        == course_slug
-    )
+    assert await get_current_course_slug(telegram_id) == course_slug
 
     assert (
         await is_current_course(
@@ -80,15 +65,8 @@ async def test_current_course_is_persisted():
         is True
     )
 
-    cleared = await clear_current_course(
-        telegram_id
-    )
+    cleared = await clear_current_course(telegram_id)
 
     assert cleared is True
 
-    assert (
-        await get_current_course_slug(
-            telegram_id
-        )
-        is None
-    )
+    assert await get_current_course_slug(telegram_id) is None

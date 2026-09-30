@@ -26,26 +26,21 @@ async def register_or_update_user(
 
         return user
 
+
 async def has_current_ai_review_consent(
     telegram_id: int,
 ) -> bool:
     async with async_session_factory() as session:
-        repository = UserRepository(
-            session
-        )
+        repository = UserRepository(session)
 
-        user = await repository.get_by_telegram_id(
-            telegram_id
-        )
+        user = await repository.get_by_telegram_id(telegram_id)
 
         if user is None:
             return False
 
         return (
-            user.ai_review_consent_version
-            == AI_REVIEW_CONSENT_VERSION
-            and user.ai_review_consent_at
-            is not None
+            user.ai_review_consent_version == AI_REVIEW_CONSENT_VERSION
+            and user.ai_review_consent_at is not None
         )
 
 
@@ -53,18 +48,12 @@ async def accept_ai_review_consent(
     telegram_id: int,
 ) -> bool:
     async with async_session_factory() as session:
-        repository = UserRepository(
-            session
-        )
+        repository = UserRepository(session)
 
-        accepted = (
-            await repository.set_ai_review_consent(
-                telegram_id=telegram_id,
-                version=(
-                    AI_REVIEW_CONSENT_VERSION
-                ),
-                accepted_at=datetime.now(UTC),
-            )
+        accepted = await repository.set_ai_review_consent(
+            telegram_id=telegram_id,
+            version=(AI_REVIEW_CONSENT_VERSION),
+            accepted_at=datetime.now(UTC),
         )
 
         if not accepted:
@@ -82,26 +71,17 @@ async def set_current_course(
     course_slug: str,
 ) -> bool:
     async with async_session_factory() as session:
-        user_repository = UserRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
+        user_repository = UserRepository(session)
+        course_repository = CourseRepository(session)
 
-        course = await course_repository.get_by_slug(
-            course_slug
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
             return False
 
-        updated = (
-            await user_repository
-            .set_current_course_id(
-                telegram_id=telegram_id,
-                course_id=course.id,
-            )
+        updated = await user_repository.set_current_course_id(
+            telegram_id=telegram_id,
+            course_id=course.id,
         )
 
         if not updated:
@@ -117,16 +97,11 @@ async def clear_current_course(
     telegram_id: int,
 ) -> bool:
     async with async_session_factory() as session:
-        repository = UserRepository(
-            session
-        )
+        repository = UserRepository(session)
 
-        updated = (
-            await repository
-            .set_current_course_id(
-                telegram_id=telegram_id,
-                course_id=None,
-            )
+        updated = await repository.set_current_course_id(
+            telegram_id=telegram_id,
+            course_id=None,
         )
 
         if not updated:
@@ -142,31 +117,17 @@ async def get_current_course_slug(
     telegram_id: int,
 ) -> str | None:
     async with async_session_factory() as session:
-        user_repository = UserRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
+        user_repository = UserRepository(session)
+        course_repository = CourseRepository(session)
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_id
-        )
+        user = await user_repository.get_by_telegram_id(telegram_id)
 
-        if (
-            user is None
-            or user.current_course_id is None
-        ):
+        if user is None or user.current_course_id is None:
             return None
 
-        course = await course_repository.get_by_id(
-            user.current_course_id
-        )
+        course = await course_repository.get_by_id(user.current_course_id)
 
-        if (
-            course is None
-            or not course.is_active
-        ):
+        if course is None or not course.is_active:
             return None
 
         return course.slug
@@ -177,12 +138,6 @@ async def is_current_course(
     telegram_id: int,
     course_slug: str,
 ) -> bool:
-    current_course_slug = (
-        await get_current_course_slug(
-            telegram_id
-        )
-    )
+    current_course_slug = await get_current_course_slug(telegram_id)
 
-    return (
-        current_course_slug == course_slug
-    )
+    return current_course_slug == course_slug

@@ -45,6 +45,7 @@ PAYMENT_SUPPORT_TEXT = (
     "• что именно произошло."
 )
 
+
 def parse_subscription_payload(
     payload: str,
 ) -> int | None:
@@ -53,20 +54,13 @@ def parse_subscription_payload(
     if not payload.startswith(prefix):
         return None
 
-    raw_payment_id = payload[
-        len(prefix):
-    ]
+    raw_payment_id = payload[len(prefix) :]
 
-    if (
-        not raw_payment_id
-        or ":" in raw_payment_id
-    ):
+    if not raw_payment_id or ":" in raw_payment_id:
         return None
 
     try:
-        payment_id = int(
-            raw_payment_id
-        )
+        payment_id = int(raw_payment_id)
 
     except ValueError:
         return None
@@ -76,9 +70,8 @@ def parse_subscription_payload(
 
     return payment_id
 
-@router.callback_query(
-    F.data.startswith("payment:stars:")
-)
+
+@router.callback_query(F.data.startswith("payment:stars:"))
 async def stars_payment_handler(
     callback: CallbackQuery,
     bot: Bot,
@@ -95,9 +88,7 @@ async def stars_payment_handler(
         )
         return
 
-    plan = get_subscription_plan(
-        course_slug
-    )
+    plan = get_subscription_plan(course_slug)
 
     if plan is None:
         await callback.answer(
@@ -128,10 +119,7 @@ async def stars_payment_handler(
     await bot.send_invoice(
         chat_id=callback.from_user.id,
         title="Подписка на Python-курс",
-        description=(
-            f"Доступ к {course_slug} "
-            f"на {plan.days} дней."
-        ),
+        description=(f"Доступ к {course_slug} на {plan.days} дней."),
         payload=payload,
         currency="XTR",
         prices=[
@@ -149,22 +137,19 @@ async def stars_payment_handler(
 
     await callback.answer()
 
+
 @router.pre_checkout_query()
 async def pre_checkout_handler(
     query: PreCheckoutQuery,
 ) -> None:
     payload = query.invoice_payload
 
-    payment_id = parse_subscription_payload(
-        payload
-    )
+    payment_id = parse_subscription_payload(payload)
 
     if payment_id is None:
         await query.answer(
             ok=False,
-            error_message=(
-                "Некорректный платёж."
-            ),
+            error_message=("Некорректный платёж."),
         )
         return
 
@@ -183,30 +168,21 @@ async def pre_checkout_handler(
         )
         return
 
-    await query.answer(
-        ok=True
-    )
+    await query.answer(ok=True)
 
-@router.message(
-    F.successful_payment
-)
+
+@router.message(F.successful_payment)
 async def successful_payment_handler(
     message: Message,
 ) -> None:
-    successful_payment = (
-        message.successful_payment
-    )
+    successful_payment = message.successful_payment
 
     if successful_payment is None:
         return
 
-    payload = (
-        successful_payment.invoice_payload
-    )
+    payload = successful_payment.invoice_payload
 
-    payment_id = parse_subscription_payload(
-        payload
-    )
+    payment_id = parse_subscription_payload(payload)
 
     if payment_id is None:
         logger.error(
@@ -216,10 +192,7 @@ async def successful_payment_handler(
             "charge_id=%s",
             payload,
             message.from_user.id,
-            (
-                successful_payment
-                .telegram_payment_charge_id
-            ),
+            (successful_payment.telegram_payment_charge_id),
         )
 
         await message.answer(
@@ -231,30 +204,17 @@ async def successful_payment_handler(
                 "проверить платёж и активировать "
                 "подписку."
             ),
-            reply_markup=(
-                get_payment_support_keyboard()
-            ),
+            reply_markup=(get_payment_support_keyboard()),
         )
         return
 
     try:
-        processed = (
-            await process_telegram_stars_payment(
-                payment_id=payment_id,
-                telegram_user_id=(
-                    message.from_user.id
-                ),
-                telegram_payment_charge_id=(
-                    successful_payment
-                    .telegram_payment_charge_id
-                ),
-                currency=(
-                    successful_payment.currency
-                ),
-                total_amount=(
-                    successful_payment.total_amount
-                ),
-            )
+        processed = await process_telegram_stars_payment(
+            payment_id=payment_id,
+            telegram_user_id=(message.from_user.id),
+            telegram_payment_charge_id=(successful_payment.telegram_payment_charge_id),
+            currency=(successful_payment.currency),
+            total_amount=(successful_payment.total_amount),
         )
 
     except PaymentError as error:
@@ -266,10 +226,7 @@ async def successful_payment_handler(
             "error=%s",
             payment_id,
             message.from_user.id,
-            (
-                successful_payment
-                .telegram_payment_charge_id
-            ),
+            (successful_payment.telegram_payment_charge_id),
             error,
         )
 
@@ -281,9 +238,7 @@ async def successful_payment_handler(
                 "Обратись в поддержку — платёж "
                 "нужно проверить."
             ),
-            reply_markup=(
-                get_payment_support_keyboard()
-            ),
+            reply_markup=(get_payment_support_keyboard()),
         )
         return
 
@@ -300,9 +255,8 @@ async def successful_payment_handler(
         ),
     )
 
-@router.callback_query(
-    F.data.startswith("payment:cancel:")
-)
+
+@router.callback_query(F.data.startswith("payment:cancel:"))
 async def cancel_stars_payment_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -343,26 +297,18 @@ async def cancel_stars_payment_handler(
 
     await callback.message.delete()
 
-    plan = get_subscription_plan(
-        course_slug
-    )
+    plan = get_subscription_plan(course_slug)
 
     await callback.message.answer(
-        text=(
-            "❌ <b>Оплата отменена.</b>\n\n"
-            "Подписка не была изменена."
-        ),
+        text=("❌ <b>Оплата отменена.</b>\n\nПодписка не была изменена."),
         reply_markup=get_subscription_keyboard(
             course_slug=course_slug,
             can_pay=plan is not None,
-            stars_price=(
-                plan.stars_price
-                if plan is not None
-                else None
-            ),
+            stars_price=(plan.stars_price if plan is not None else None),
             admin_username=get_admin_username(),
         ),
     )
+
 
 async def show_payment_support(
     message: Message,
@@ -372,15 +318,15 @@ async def show_payment_support(
         reply_markup=get_payment_support_keyboard(),
     )
 
+
 @router.message(Command("paysupport"))
 async def payment_support_handler(
     message: Message,
 ) -> None:
     await show_payment_support(message)
 
-@router.callback_query(
-    F.data.startswith("payment:support:")
-)
+
+@router.callback_query(F.data.startswith("payment:support:"))
 async def payment_support_callback_handler(
     callback: CallbackQuery,
 ) -> None:

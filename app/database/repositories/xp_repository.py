@@ -43,16 +43,14 @@ class XPRepository:
             .returning(XPTransaction)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def get_total_by_course(
-            self,
-            user_id: int,
-            course_id: int,
+        self,
+        user_id: int,
+        course_id: int,
     ) -> int:
         statement = select(
             func.coalesce(
@@ -64,17 +62,15 @@ class XPRepository:
             XPTransaction.course_id == course_id,
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return int(result.scalar_one())
 
     async def get_recent_by_course(
-            self,
-            user_id: int,
-            course_id: int,
-            limit: int = 10,
+        self,
+        user_id: int,
+        course_id: int,
+        limit: int = 10,
     ) -> list[
         tuple[
             XPTransaction,
@@ -90,24 +86,17 @@ class XPRepository:
             )
             .outerjoin(
                 Project,
-                Project.id
-                == XPTransaction.project_id,
+                Project.id == XPTransaction.project_id,
             )
             .where(
-                XPTransaction.user_id
-                == user_id,
-                XPTransaction.course_id
-                == course_id,
+                XPTransaction.user_id == user_id,
+                XPTransaction.course_id == course_id,
             )
-            .order_by(
-                XPTransaction.created_at.desc()
-            )
+            .order_by(XPTransaction.created_at.desc())
             .limit(limit)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return [
             (
@@ -121,4 +110,3 @@ class XPRepository:
                 project_title,
             ) in result.all()
         ]
-

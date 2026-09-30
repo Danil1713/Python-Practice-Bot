@@ -18,9 +18,7 @@ async def check_current_course(
         return True
 
     await callback.answer(
-        "Этот уровень сейчас не выбран. "
-        "Нажми «Сменить уровень» "
-        "или используй /start.",
+        "Этот уровень сейчас не выбран. Нажми «Сменить уровень» или используй /start.",
         show_alert=True,
     )
 

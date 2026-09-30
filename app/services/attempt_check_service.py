@@ -61,96 +61,64 @@ def _build_local_review_result(
     source_code: str,
     requirements_snapshot: str | None,
 ) -> tuple[CodeReviewResult, str] | None:
-    syntax_check = validate_python_syntax(
-        source_code
-    )
+    syntax_check = validate_python_syntax(source_code)
 
     if not syntax_check.valid:
         location_parts = []
 
         if syntax_check.line is not None:
-            location_parts.append(
-                f"строка {syntax_check.line}"
-            )
+            location_parts.append(f"строка {syntax_check.line}")
 
         if syntax_check.column is not None:
-            location_parts.append(
-                f"позиция {syntax_check.column}"
-            )
+            location_parts.append(f"позиция {syntax_check.column}")
 
-        location = ", ".join(
-            location_parts
-        )
+        location = ", ".join(location_parts)
 
-        problem = (
-            "Синтаксическая ошибка Python"
-        )
+        problem = "Синтаксическая ошибка Python"
 
         if location:
             problem += f" ({location})"
 
         if syntax_check.error_message:
-            problem += (
-                f": {syntax_check.error_message}"
-            )
+            problem += f": {syntax_check.error_message}"
 
         result = CodeReviewResult(
             verdict="failed",
             requirements_complete=False,
             criteria=[
                 RequirementReview(
-                    requirement=(
-                        "Корректный синтаксис Python"
-                    ),
+                    requirement=("Корректный синтаксис Python"),
                     status="failed",
                     explanation=problem,
                 )
             ],
-            summary=(
-                "Код не прошёл локальную "
-                "синтаксическую проверку Python."
-            ),
+            summary=("Код не прошёл локальную синтаксическую проверку Python."),
             strengths=[],
             problems=[
                 problem,
             ],
             recommendations=[
-                (
-                    "Исправь синтаксическую "
-                    "ошибку и отправь решение "
-                    "повторно."
-                )
+                ("Исправь синтаксическую ошибку и отправь решение повторно.")
             ],
         )
 
         return result, "failed"
 
-    if (
-        requirements_snapshot is None
-        or not requirements_snapshot.strip()
-    ):
-        problem = (
-            "Требования проекта для этой "
-            "попытки не были зафиксированы."
-        )
+    if requirements_snapshot is None or not requirements_snapshot.strip():
+        problem = "Требования проекта для этой попытки не были зафиксированы."
 
         result = CodeReviewResult(
             verdict="review",
             requirements_complete=False,
             criteria=[
                 RequirementReview(
-                    requirement=(
-                        "Зафиксированные требования "
-                        "проекта"
-                    ),
+                    requirement=("Зафиксированные требования проекта"),
                     status="uncertain",
                     explanation=problem,
                 )
             ],
             summary=(
-                "Автоматическая проверка "
-                "невозможна без сохранённого "
-                "снимка требований."
+                "Автоматическая проверка невозможна без сохранённого снимка требований."
             ),
             strengths=[],
             problems=[
@@ -180,32 +148,20 @@ async def _handle_ai_review_error(
     ai_policy_version: str | None,
 ) -> None:
     async with async_session_factory() as error_session:
-        attempt_repository = AttemptRepository(
-            error_session
-        )
-        project_repository = ProjectRepository(
-            error_session
-        )
-        course_repository = CourseRepository(
-            error_session
-        )
+        attempt_repository = AttemptRepository(error_session)
+        project_repository = ProjectRepository(error_session)
+        course_repository = CourseRepository(error_session)
 
-        attempt = await attempt_repository.get_by_id(
-            attempt_id
-        )
+        attempt = await attempt_repository.get_by_id(attempt_id)
 
         if attempt is None:
             return
 
         await attempt_repository.set_evaluation_metadata(
             attempt,
-            evaluation_version=(
-                EVALUATION_VERSION
-            ),
+            evaluation_version=(EVALUATION_VERSION),
             ai_model=ai_model,
-            ai_policy_version=(
-                ai_policy_version
-            ),
+            ai_policy_version=(ai_policy_version),
             ai_result_json=None,
         )
 
@@ -214,33 +170,24 @@ async def _handle_ai_review_error(
             str(error),
         )
 
-        project = await project_repository.get_by_id(
-            attempt.project_id
-        )
+        project = await project_repository.get_by_id(attempt.project_id)
 
         await error_session.commit()
 
         if project is None:
             return
 
-        course = await course_repository.get_by_id(
-            project.course_id
-        )
+        course = await course_repository.get_by_id(project.course_id)
 
         if course is None:
             return
 
-        active_subscription = (
-            await has_active_subscription(
-                telegram_user_id=telegram_user_id,
-                course_slug=course.slug,
-            )
+        active_subscription = await has_active_subscription(
+            telegram_user_id=telegram_user_id,
+            course_slug=course.slug,
         )
 
-        if (
-            attempt.status_chat_id is None
-            or attempt.status_message_id is None
-        ):
+        if attempt.status_chat_id is None or attempt.status_message_id is None:
             return
 
         await bot.edit_message_text(
@@ -257,9 +204,7 @@ async def _handle_ai_review_error(
             reply_markup=get_project_card_markup(
                 project,
                 course_slug=course.slug,
-                active_subscription=(
-                    active_subscription
-                ),
+                active_subscription=(active_subscription),
             ),
         )
 
@@ -279,37 +224,25 @@ async def _apply_attempt_result(
 ) -> None:
     await attempt_repository.set_evaluation_metadata(
         attempt,
-        evaluation_version=(
-            EVALUATION_VERSION
-        ),
+        evaluation_version=(EVALUATION_VERSION),
         ai_model=ai_model,
-        ai_policy_version=(
-            ai_policy_version
-        ),
+        ai_policy_version=(ai_policy_version),
         ai_result_json=ai_result_json,
     )
 
-    if verdict_allows_xp(
-        effective_verdict
-    ):
+    if verdict_allows_xp(effective_verdict):
         await attempt_repository.mark_passed(
             attempt,
             feedback,
         )
 
-        completed = (
-            await user_project_repository
-            .complete_project(
-                user_id=attempt.user_id,
-                project_id=project.id,
-                awarded_xp=attempt.xp_snapshot,
-            )
+        completed = await user_project_repository.complete_project(
+            user_id=attempt.user_id,
+            project_id=project.id,
+            awarded_xp=attempt.xp_snapshot,
         )
 
-        if (
-            completed is not None
-            and attempt.xp_snapshot > 0
-        ):
+        if completed is not None and attempt.xp_snapshot > 0:
             await xp_repository.add_project_reward(
                 user_id=attempt.user_id,
                 course_id=project.course_id,
@@ -336,9 +269,7 @@ def _build_attempt_result_text(
     project_number: int,
     project_title: str,
 ) -> str:
-    safe_title = escape(
-        project_title
-    )
+    safe_title = escape(project_title)
 
     if effective_verdict == "passed":
         return (
@@ -383,28 +314,19 @@ async def _notify_attempt_result(
     effective_verdict: str,
     bot: Bot,
 ) -> None:
-    if (
-        attempt.status_chat_id is None
-        or attempt.status_message_id is None
-    ):
+    if attempt.status_chat_id is None or attempt.status_message_id is None:
         return
 
-    course_repository = CourseRepository(
-        session
-    )
+    course_repository = CourseRepository(session)
 
-    course = await course_repository.get_by_id(
-        project.course_id
-    )
+    course = await course_repository.get_by_id(project.course_id)
 
     if course is None:
         return
 
-    active_subscription = (
-        await has_active_subscription(
-            telegram_user_id=telegram_user_id,
-            course_slug=course.slug,
-        )
+    active_subscription = await has_active_subscription(
+        telegram_user_id=telegram_user_id,
+        course_slug=course.slug,
     )
 
     result_text = _build_attempt_result_text(
@@ -420,9 +342,7 @@ async def _notify_attempt_result(
         reply_markup=get_project_card_markup(
             project,
             course_slug=course.slug,
-            active_subscription=(
-                active_subscription
-            ),
+            active_subscription=(active_subscription),
         ),
     )
 
@@ -432,19 +352,11 @@ async def check_attempt(
     bot: Bot,
 ) -> None:
     async with async_session_factory() as session:
-        attempt_repository = AttemptRepository(
-            session
-        )
-        project_repository = ProjectRepository(
-            session
-        )
-        user_repository = UserRepository(
-            session
-        )
+        attempt_repository = AttemptRepository(session)
+        project_repository = ProjectRepository(session)
+        user_repository = UserRepository(session)
 
-        claimed = await attempt_repository.claim_pending(
-            attempt_id
-        )
+        claimed = await attempt_repository.claim_pending(attempt_id)
 
         if not claimed:
             await session.rollback()
@@ -452,16 +364,12 @@ async def check_attempt(
 
         await session.commit()
 
-        attempt = await attempt_repository.get_by_id(
-            attempt_id
-        )
+        attempt = await attempt_repository.get_by_id(attempt_id)
 
         if attempt is None:
             return
 
-        project = await project_repository.get_by_id(
-            attempt.project_id
-        )
+        project = await project_repository.get_by_id(attempt.project_id)
 
         if project is None:
             await attempt_repository.mark_error(
@@ -472,9 +380,7 @@ async def check_attempt(
             await session.commit()
             return
 
-        user = await user_repository.get_by_id(
-            attempt.user_id
-        )
+        user = await user_repository.get_by_id(attempt.user_id)
 
         if user is None:
             await attempt_repository.mark_error(
@@ -488,41 +394,28 @@ async def check_attempt(
         telegram_user_id = user.telegram_id
 
         has_ai_consent = (
-            user.ai_review_consent_version
-            == AI_REVIEW_CONSENT_VERSION
-            and user.ai_review_consent_at
-            is not None
+            user.ai_review_consent_version == AI_REVIEW_CONSENT_VERSION
+            and user.ai_review_consent_at is not None
         )
 
         if not has_ai_consent:
             await attempt_repository.mark_error(
                 attempt,
-                (
-                    "AI review consent "
-                    "missing or outdated"
-                ),
+                ("AI review consent missing or outdated"),
             )
 
-            course_repository = CourseRepository(
-                session
-            )
+            course_repository = CourseRepository(session)
 
-            course = await course_repository.get_by_id(
-                project.course_id
-            )
+            course = await course_repository.get_by_id(project.course_id)
 
             await session.commit()
 
             active_subscription = False
 
             if course is not None:
-                active_subscription = (
-                    await has_active_subscription(
-                        telegram_user_id=(
-                            telegram_user_id
-                        ),
-                        course_slug=course.slug,
-                    )
+                active_subscription = await has_active_subscription(
+                    telegram_user_id=(telegram_user_id),
+                    course_slug=course.slug,
                 )
 
             if (
@@ -532,9 +425,7 @@ async def check_attempt(
             ):
                 await bot.edit_message_text(
                     chat_id=attempt.status_chat_id,
-                    message_id=(
-                        attempt.status_message_id
-                    ),
+                    message_id=(attempt.status_message_id),
                     text=(
                         "⚠️ <b>Проверка "
                         "не запущена.</b>\n\n"
@@ -549,18 +440,14 @@ async def check_attempt(
                         get_project_card_markup(
                             project,
                             course_slug=course.slug,
-                            active_subscription=(
-                                active_subscription
-                            ),
+                            active_subscription=(active_subscription),
                         )
                     ),
                 )
 
             return
 
-        await attempt_repository.mark_checking(
-            attempt
-        )
+        await attempt_repository.mark_checking(attempt)
 
         await session.commit()
 
@@ -570,35 +457,23 @@ async def check_attempt(
 
         local_review = _build_local_review_result(
             source_code=attempt.source_code,
-            requirements_snapshot=(
-                attempt.requirements_snapshot
-            ),
+            requirements_snapshot=(attempt.requirements_snapshot),
         )
 
         if local_review is not None:
-            result, effective_verdict = (
-                local_review
-            )
+            result, effective_verdict = local_review
 
         else:
             try:
                 ai_model_used = get_ai_model()
-                ai_policy_version_used = (
-                    AI_POLICY_VERSION
+                ai_policy_version_used = AI_POLICY_VERSION
+
+                ai_checks_used = await attempt_repository.count_ai_checks(
+                    user_id=attempt.user_id,
+                    project_id=attempt.project_id,
                 )
 
-                ai_checks_used = (
-                    await attempt_repository
-                    .count_ai_checks(
-                        user_id=attempt.user_id,
-                        project_id=attempt.project_id,
-                    )
-                )
-
-                if (
-                        ai_checks_used
-                        >= MAX_AI_CHECKS_PER_PROJECT
-                ):
+                if ai_checks_used >= MAX_AI_CHECKS_PER_PROJECT:
                     await attempt_repository.mark_error(
                         attempt,
                         "AI check limit reached",
@@ -606,24 +481,18 @@ async def check_attempt(
 
                     await session.commit()
 
-                    course_repository = CourseRepository(
-                        session
-                    )
+                    course_repository = CourseRepository(session)
 
-                    course = await course_repository.get_by_id(
-                        project.course_id
-                    )
+                    course = await course_repository.get_by_id(project.course_id)
 
                     if (
-                            course is not None
-                            and attempt.status_chat_id is not None
-                            and attempt.status_message_id is not None
+                        course is not None
+                        and attempt.status_chat_id is not None
+                        and attempt.status_message_id is not None
                     ):
-                        active_subscription = (
-                            await has_active_subscription(
-                                telegram_user_id=telegram_user_id,
-                                course_slug=course.slug,
-                            )
+                        active_subscription = await has_active_subscription(
+                            telegram_user_id=telegram_user_id,
+                            course_slug=course.slug,
                         )
 
                         await bot.edit_message_text(
@@ -641,9 +510,7 @@ async def check_attempt(
                             reply_markup=get_project_card_markup(
                                 project,
                                 course_slug=course.slug,
-                                active_subscription=(
-                                    active_subscription
-                                ),
+                                active_subscription=(active_subscription),
                             ),
                         )
 
@@ -651,13 +518,9 @@ async def check_attempt(
 
                 await attempt_repository.set_evaluation_metadata(
                     attempt,
-                    evaluation_version=(
-                        EVALUATION_VERSION
-                    ),
+                    evaluation_version=(EVALUATION_VERSION),
                     ai_model=ai_model_used,
-                    ai_policy_version=(
-                        ai_policy_version_used
-                    ),
+                    ai_policy_version=(ai_policy_version_used),
                     ai_result_json=None,
                 )
 
@@ -665,91 +528,54 @@ async def check_attempt(
 
                 result = await review_python_code(
                     project_title=project.title,
-                    requirements=(
-                        attempt.requirements_snapshot
-                    ),
+                    requirements=(attempt.requirements_snapshot),
                     source_code=attempt.source_code,
                 )
 
-                ai_result_json = (
-                    result.model_dump_json()
-                )
+                ai_result_json = result.model_dump_json()
 
-                effective_verdict = (
-                    resolve_review_verdict(
-                        result
-                    )
-                )
+                effective_verdict = resolve_review_verdict(result)
 
             except Exception as error:
                 await _handle_ai_review_error(
                     attempt_id=attempt_id,
-                    telegram_user_id=(
-                        telegram_user_id
-                    ),
+                    telegram_user_id=(telegram_user_id),
                     bot=bot,
                     error=error,
                     ai_model=ai_model_used,
-                    ai_policy_version=(
-                        ai_policy_version_used
-                    ),
+                    ai_policy_version=(ai_policy_version_used),
                 )
 
                 return
 
-        feedback = format_review_feedback(
-            result
-        )
+        feedback = format_review_feedback(result)
 
-        async with (
-            async_session_factory()
-            as result_session
-        ):
-            attempt_repository = AttemptRepository(
-                result_session
-            )
-            user_project_repository = (
-                UserProjectRepository(
-                    result_session
-                )
-            )
-            xp_repository = XPRepository(
-                result_session
-            )
-            project_repository = ProjectRepository(
-                result_session
-            )
+        async with async_session_factory() as result_session:
+            attempt_repository = AttemptRepository(result_session)
+            user_project_repository = UserProjectRepository(result_session)
+            xp_repository = XPRepository(result_session)
+            project_repository = ProjectRepository(result_session)
 
-            attempt = await attempt_repository.get_by_id(
-                attempt_id
-            )
+            attempt = await attempt_repository.get_by_id(attempt_id)
 
             if attempt is None:
                 return
 
-            project = await project_repository.get_by_id(
-                attempt.project_id
-            )
+            project = await project_repository.get_by_id(attempt.project_id)
 
             if project is None:
                 return
 
             await _apply_attempt_result(
                 attempt_repository=attempt_repository,
-                user_project_repository=(
-                    user_project_repository
-                ),
+                user_project_repository=(user_project_repository),
                 xp_repository=xp_repository,
                 attempt=attempt,
                 project=project,
-                effective_verdict=(
-                    effective_verdict
-                ),
+                effective_verdict=(effective_verdict),
                 feedback=feedback,
                 ai_model=ai_model_used,
-                ai_policy_version=(
-                    ai_policy_version_used
-                ),
+                ai_policy_version=(ai_policy_version_used),
                 ai_result_json=ai_result_json,
             )
 
@@ -759,11 +585,7 @@ async def check_attempt(
                 session=result_session,
                 attempt=attempt,
                 project=project,
-                telegram_user_id=(
-                    telegram_user_id
-                ),
-                effective_verdict=(
-                    effective_verdict
-                ),
+                telegram_user_id=(telegram_user_id),
+                effective_verdict=(effective_verdict),
                 bot=bot,
             )

@@ -20,58 +20,37 @@ class CourseRepository:
             Course.is_active.is_(True),
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def get_all_active(
         self,
     ) -> list[Course]:
-        statement = (
-            select(Course)
-            .where(
-                Course.is_active.is_(True)
-            )
-            .order_by(Course.id)
-        )
+        statement = select(Course).where(Course.is_active.is_(True)).order_by(Course.id)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def get_by_id(
-            self,
-            course_id: int,
+        self,
+        course_id: int,
     ) -> Course | None:
-        statement = select(Course).where(
-            Course.id == course_id
-        )
+        statement = select(Course).where(Course.id == course_id)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def get_by_telegram_channel_id(
-            self,
-            telegram_channel_id: int,
+        self,
+        telegram_channel_id: int,
     ) -> Course | None:
-        statement = select(
-            Course
-        ).where(
-            Course.telegram_channel_id
-            == telegram_channel_id
+        statement = select(Course).where(
+            Course.telegram_channel_id == telegram_channel_id
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()

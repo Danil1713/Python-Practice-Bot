@@ -29,11 +29,7 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 
-@router.callback_query(
-    F.data.startswith(
-        "subscription:channel:"
-    )
-)
+@router.callback_query(F.data.startswith("subscription:channel:"))
 async def subscription_channel_handler(
     callback: CallbackQuery,
     bot: Bot,
@@ -57,14 +53,10 @@ async def subscription_channel_handler(
         return
 
     try:
-        invite_link = (
-            await create_course_join_request_link(
-                bot=bot,
-                telegram_user_id=(
-                    callback.from_user.id
-                ),
-                course_slug=course_slug,
-            )
+        invite_link = await create_course_join_request_link(
+            bot=bot,
+            telegram_user_id=(callback.from_user.id),
+            course_slug=course_slug,
         )
 
     except ChannelAccessError as error:
@@ -99,9 +91,7 @@ async def course_join_request_handler(
     request: ChatJoinRequest,
     bot: Bot,
 ) -> None:
-    course = await get_course_by_channel_id(
-        request.chat.id
-    )
+    course = await get_course_by_channel_id(request.chat.id)
 
     if course is None:
         return
@@ -110,9 +100,7 @@ async def course_join_request_handler(
 
     if course.requires_subscription:
         allowed = await has_active_subscription(
-            telegram_user_id=(
-                request.from_user.id
-            ),
+            telegram_user_id=(request.from_user.id),
             course_slug=course.slug,
         )
 
@@ -143,10 +131,7 @@ async def course_join_request_handler(
 
     except Exception:
         logger.exception(
-            "Could not decline "
-            "channel join request "
-            "telegram_user_id=%s "
-            "course_slug=%s",
+            "Could not decline channel join request telegram_user_id=%s course_slug=%s",
             request.from_user.id,
             course.slug,
         )

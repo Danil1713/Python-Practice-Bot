@@ -18,6 +18,7 @@ from app.services.subscription_service import activate_or_extend_subscription_in
 
 logger = logging.getLogger(__name__)
 
+
 class PaymentError(Exception):
     pass
 
@@ -40,6 +41,7 @@ class CreatedPayment:
     subscription_days: int
     status: str
 
+
 @dataclass(frozen=True)
 class PaymentCheckoutView:
     id: int
@@ -50,10 +52,12 @@ class PaymentCheckoutView:
     currency: str
     subscription_days: int
 
+
 @dataclass(frozen=True)
 class ProcessedPayment:
     course_slug: str
     subscription_days: int
+
 
 @dataclass(frozen=True)
 class ReviewPaymentItem:
@@ -69,6 +73,7 @@ class ReviewPaymentItem:
     error_message: str | None
     created_at: datetime
 
+
 async def create_payment(
     *,
     telegram_user_id: int,
@@ -79,48 +84,28 @@ async def create_payment(
     currency: str = "RUB",
 ) -> CreatedPayment:
     if amount <= 0:
-        raise PaymentError(
-            "Стоимость должна быть больше 0."
-        )
+        raise PaymentError("Стоимость должна быть больше 0.")
 
     if subscription_days <= 0:
-        raise PaymentError(
-            "Срок подписки должен быть больше 0."
-        )
+        raise PaymentError("Срок подписки должен быть больше 0.")
 
     async with async_session_factory() as session:
-        user_repository = UserRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
-        payment_repository = PaymentRepository(
-            session
-        )
+        user_repository = UserRepository(session)
+        course_repository = CourseRepository(session)
+        payment_repository = PaymentRepository(session)
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_user_id
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         if user is None:
-            raise PaymentError(
-                "Пользователь не найден."
-            )
+            raise PaymentError("Пользователь не найден.")
 
-        course = await course_repository.get_by_slug(
-            course_slug
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
-            raise PaymentError(
-                "Курс не найден."
-            )
+            raise PaymentError("Курс не найден.")
 
         if not course.requires_subscription:
-            raise PaymentError(
-                "Для этого курса подписка не требуется."
-            )
+            raise PaymentError("Для этого курса подписка не требуется.")
 
         payment = await payment_repository.create(
             user_id=user.id,
@@ -139,9 +124,7 @@ async def create_payment(
             course_id=payment.course_id,
             amount=payment.amount,
             currency=payment.currency,
-            subscription_days=(
-                payment.subscription_days
-            ),
+            subscription_days=(payment.subscription_days),
             status=payment.status,
         )
 
@@ -150,23 +133,15 @@ async def get_payment_checkout_view(
     payment_id: int,
 ) -> PaymentCheckoutView | None:
     async with async_session_factory() as session:
-        payment_repository = PaymentRepository(
-            session
-        )
-        user_repository = UserRepository(
-            session
-        )
+        payment_repository = PaymentRepository(session)
+        user_repository = UserRepository(session)
 
-        payment = await payment_repository.get_by_id(
-            payment_id
-        )
+        payment = await payment_repository.get_by_id(payment_id)
 
         if payment is None:
             return None
 
-        user = await user_repository.get_by_id(
-            payment.user_id
-        )
+        user = await user_repository.get_by_id(payment.user_id)
 
         if user is None:
             return None
@@ -178,10 +153,9 @@ async def get_payment_checkout_view(
             status=payment.status,
             amount=payment.amount,
             currency=payment.currency,
-            subscription_days=(
-                payment.subscription_days
-            ),
+            subscription_days=(payment.subscription_days),
         )
+
 
 async def _process_telegram_stars_payment(
     *,
@@ -191,33 +165,18 @@ async def _process_telegram_stars_payment(
     currency: str,
     total_amount: int,
 ) -> ProcessedPayment:
-    now = datetime.now(
-        timezone.utc
-    )
+    now = datetime.now(timezone.utc)
 
     async with async_session_factory() as session:
-        payment_repository = PaymentRepository(
-            session
-        )
-        user_repository = UserRepository(
-            session
-        )
+        payment_repository = PaymentRepository(session)
+        user_repository = UserRepository(session)
 
-        course_repository = CourseRepository(
-            session
-        )
+        course_repository = CourseRepository(session)
 
-        payment = (
-            await payment_repository
-            .get_by_id_for_update(
-                payment_id
-            )
-        )
+        payment = await payment_repository.get_by_id_for_update(payment_id)
 
         if payment is None:
-            raise PaymentNotFound(
-                "Платёж не найден."
-            )
+            raise PaymentNotFound("Платёж не найден.")
 
         if payment.status not in {
             "pending",
@@ -225,80 +184,44 @@ async def _process_telegram_stars_payment(
             "review",
             "succeeded",
         }:
-            raise PaymentError(
-                "Платёж уже нельзя обработать."
-            )
+            raise PaymentError("Платёж уже нельзя обработать.")
 
-        user = await user_repository.get_by_id(
-            payment.user_id
-        )
+        user = await user_repository.get_by_id(payment.user_id)
 
         if user is None:
-            raise PaymentError(
-                "Пользователь не найден."
-            )
+            raise PaymentError("Пользователь не найден.")
 
-        course = await course_repository.get_by_id(
-            payment.course_id
-        )
+        course = await course_repository.get_by_id(payment.course_id)
 
         if course is None:
-            raise PaymentError(
-                "Курс не найден."
-            )
+            raise PaymentError("Курс не найден.")
 
-        if (
-            user.telegram_id
-            != telegram_user_id
-        ):
-            raise PaymentError(
-                "Платёж принадлежит "
-                "другому пользователю."
-            )
+        if user.telegram_id != telegram_user_id:
+            raise PaymentError("Платёж принадлежит другому пользователю.")
 
         if currency != payment.currency:
-            raise PaymentError(
-                "Валюта платежа не совпадает."
-            )
+            raise PaymentError("Валюта платежа не совпадает.")
 
         if total_amount != payment.amount:
-            raise PaymentError(
-                "Сумма платежа не совпадает."
-            )
+            raise PaymentError("Сумма платежа не совпадает.")
 
-        existing = (
-            await payment_repository
-            .get_by_external_id(
-                telegram_payment_charge_id
-            )
+        existing = await payment_repository.get_by_external_id(
+            telegram_payment_charge_id
         )
 
-        if (
-            existing is not None
-            and existing.id != payment.id
-        ):
-            raise PaymentError(
-                "Telegram charge уже связан "
-                "с другим платежом."
-            )
+        if existing is not None and existing.id != payment.id:
+            raise PaymentError("Telegram charge уже связан с другим платежом.")
 
         if (
-            payment.external_payment_id
-            is not None
-            and payment.external_payment_id
-            != telegram_payment_charge_id
+            payment.external_payment_id is not None
+            and payment.external_payment_id != telegram_payment_charge_id
         ):
-            raise PaymentError(
-                "Идентификатор платежа "
-                "не совпадает."
-            )
+            raise PaymentError("Идентификатор платежа не совпадает.")
 
         if payment.status == "succeeded":
             return ProcessedPayment(
                 course_slug=course.slug,
-                subscription_days=(
-                    payment.subscription_days
-                ),
+                subscription_days=(payment.subscription_days),
             )
 
         if payment.external_payment_id is None:
@@ -307,13 +230,11 @@ async def _process_telegram_stars_payment(
                 telegram_payment_charge_id,
             )
 
-        await (
-            activate_or_extend_subscription_in_session(
-                session=session,
-                user_id=payment.user_id,
-                course_id=payment.course_id,
-                days=payment.subscription_days,
-            )
+        await activate_or_extend_subscription_in_session(
+            session=session,
+            user_id=payment.user_id,
+            course_id=payment.course_id,
+            days=payment.subscription_days,
         )
 
         await payment_repository.mark_succeeded(
@@ -328,6 +249,7 @@ async def _process_telegram_stars_payment(
             subscription_days=payment.subscription_days,
         )
 
+
 async def process_telegram_stars_payment(
     *,
     payment_id: int,
@@ -337,18 +259,12 @@ async def process_telegram_stars_payment(
     total_amount: int,
 ) -> ProcessedPayment:
     try:
-        return await (
-            _process_telegram_stars_payment(
-                payment_id=payment_id,
-                telegram_user_id=(
-                    telegram_user_id
-                ),
-                telegram_payment_charge_id=(
-                    telegram_payment_charge_id
-                ),
-                currency=currency,
-                total_amount=total_amount,
-            )
+        return await _process_telegram_stars_payment(
+            payment_id=payment_id,
+            telegram_user_id=(telegram_user_id),
+            telegram_payment_charge_id=(telegram_payment_charge_id),
+            currency=currency,
+            total_amount=total_amount,
         )
 
     except PaymentError:
@@ -378,23 +294,17 @@ async def process_telegram_stars_payment(
         try:
             await mark_payment_for_review(
                 payment_id=payment_id,
-                telegram_payment_charge_id=(
-                    telegram_payment_charge_id
-                ),
+                telegram_payment_charge_id=(telegram_payment_charge_id),
                 error_message=str(error),
             )
 
         except Exception:
             logger.exception(
-                "Failed to mark payment "
-                "for review "
-                "payment_id=%s",
+                "Failed to mark payment for review payment_id=%s",
                 payment_id,
             )
 
-        raise PaymentError(
-            "Не удалось активировать подписку."
-        ) from error
+        raise PaymentError("Не удалось активировать подписку.") from error
 
 
 async def cancel_payment(
@@ -404,67 +314,37 @@ async def cancel_payment(
     course_slug: str,
 ) -> bool:
     async with async_session_factory() as session:
-        payment_repository = PaymentRepository(
-            session
-        )
-        user_repository = UserRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
+        payment_repository = PaymentRepository(session)
+        user_repository = UserRepository(session)
+        course_repository = CourseRepository(session)
 
-        payment = (
-            await payment_repository
-            .get_by_id_for_update(
-                payment_id
-            )
-        )
+        payment = await payment_repository.get_by_id_for_update(payment_id)
 
         if payment is None:
-            raise PaymentNotFound(
-                "Платёж не найден."
-            )
+            raise PaymentNotFound("Платёж не найден.")
 
-        user = await user_repository.get_by_id(
-            payment.user_id
-        )
+        user = await user_repository.get_by_id(payment.user_id)
 
-        if (
-            user is None
-            or user.telegram_id
-            != telegram_user_id
-        ):
-            raise PaymentError(
-                "Этот платёж принадлежит "
-                "другому пользователю."
-            )
+        if user is None or user.telegram_id != telegram_user_id:
+            raise PaymentError("Этот платёж принадлежит другому пользователю.")
 
-        course = await course_repository.get_by_id(
-            payment.course_id
-        )
+        course = await course_repository.get_by_id(payment.course_id)
 
         if course is None:
-            raise PaymentError(
-                "Курс платежа не найден."
-            )
+            raise PaymentError("Курс платежа не найден.")
 
         if course.slug != course_slug:
-            raise PaymentError(
-                "Платёж относится "
-                "к другому курсу."
-            )
+            raise PaymentError("Платёж относится к другому курсу.")
 
         if payment.status != "pending":
             return False
 
-        await payment_repository.mark_cancelled(
-            payment
-        )
+        await payment_repository.mark_cancelled(payment)
 
         await session.commit()
 
         return True
+
 
 async def approve_pre_checkout(
     *,
@@ -473,57 +353,30 @@ async def approve_pre_checkout(
     currency: str,
     total_amount: int,
 ) -> None:
-    now = datetime.now(
-        timezone.utc
-    )
+    now = datetime.now(timezone.utc)
 
     async with async_session_factory() as session:
-        payment_repository = PaymentRepository(
-            session
-        )
-        user_repository = UserRepository(
-            session
-        )
+        payment_repository = PaymentRepository(session)
+        user_repository = UserRepository(session)
 
-        payment = (
-            await payment_repository
-            .get_by_id_for_update(
-                payment_id
-            )
-        )
+        payment = await payment_repository.get_by_id_for_update(payment_id)
 
         if payment is None:
-            raise PaymentNotFound(
-                "Платёж не найден."
-            )
+            raise PaymentNotFound("Платёж не найден.")
 
         if payment.status != "pending":
-            raise PaymentError(
-                "Этот платёж уже обработан."
-            )
+            raise PaymentError("Этот платёж уже обработан.")
 
-        user = await user_repository.get_by_id(
-            payment.user_id
-        )
+        user = await user_repository.get_by_id(payment.user_id)
 
-        if (
-            user is None
-            or user.telegram_id != telegram_user_id
-        ):
-            raise PaymentError(
-                "Этот платёж принадлежит "
-                "другому пользователю."
-            )
+        if user is None or user.telegram_id != telegram_user_id:
+            raise PaymentError("Этот платёж принадлежит другому пользователю.")
 
         if payment.currency != currency:
-            raise PaymentError(
-                "Некорректная валюта."
-            )
+            raise PaymentError("Некорректная валюта.")
 
         if payment.amount != total_amount:
-            raise PaymentError(
-                "Некорректная сумма."
-            )
+            raise PaymentError("Некорректная сумма.")
 
         await payment_repository.mark_pre_checkout(
             payment=payment,
@@ -537,38 +390,23 @@ async def get_review_payments_for_course(
     course_slug: str,
 ) -> list[ReviewPaymentItem]:
     async with async_session_factory() as session:
-        payment_repository = PaymentRepository(
-            session
-        )
-        user_repository = UserRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
+        payment_repository = PaymentRepository(session)
+        user_repository = UserRepository(session)
+        course_repository = CourseRepository(session)
 
-        course = await course_repository.get_by_slug(
-            course_slug
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
-            raise PaymentError(
-                "Курс не найден."
-            )
+            raise PaymentError("Курс не найден.")
 
-        payments = (
-            await payment_repository
-            .get_review_payments(
-                course_id=course.id,
-            )
+        payments = await payment_repository.get_review_payments(
+            course_id=course.id,
         )
 
         result: list[ReviewPaymentItem] = []
 
         for payment in payments:
-            user = await user_repository.get_by_id(
-                payment.user_id
-            )
+            user = await user_repository.get_by_id(payment.user_id)
 
             if user is None:
                 continue
@@ -576,23 +414,15 @@ async def get_review_payments_for_course(
             result.append(
                 ReviewPaymentItem(
                     id=payment.id,
-                    telegram_user_id=(
-                        user.telegram_id
-                    ),
+                    telegram_user_id=(user.telegram_id),
                     username=user.username,
                     course_slug=course.slug,
                     course_title=course.title,
                     amount=payment.amount,
                     currency=payment.currency,
-                    subscription_days=(
-                        payment.subscription_days
-                    ),
-                    external_payment_id=(
-                        payment.external_payment_id
-                    ),
-                    error_message=(
-                        payment.error_message
-                    ),
+                    subscription_days=(payment.subscription_days),
+                    external_payment_id=(payment.external_payment_id),
+                    error_message=(payment.error_message),
                     created_at=payment.created_at,
                 )
             )
@@ -606,26 +436,16 @@ async def get_review_payment_detail(
     course_slug: str,
 ) -> ReviewPaymentItem | None:
     async with async_session_factory() as session:
-        payment_repository = PaymentRepository(
-            session
-        )
-        user_repository = UserRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
+        payment_repository = PaymentRepository(session)
+        user_repository = UserRepository(session)
+        course_repository = CourseRepository(session)
 
-        course = await course_repository.get_by_slug(
-            course_slug
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
             return None
 
-        payment = await payment_repository.get_by_id(
-            payment_id
-        )
+        payment = await payment_repository.get_by_id(payment_id)
 
         if (
             payment is None
@@ -634,9 +454,7 @@ async def get_review_payment_detail(
         ):
             return None
 
-        user = await user_repository.get_by_id(
-            payment.user_id
-        )
+        user = await user_repository.get_by_id(payment.user_id)
 
         if user is None:
             return None
@@ -649,12 +467,8 @@ async def get_review_payment_detail(
             course_title=course.title,
             amount=payment.amount,
             currency=payment.currency,
-            subscription_days=(
-                payment.subscription_days
-            ),
-            external_payment_id=(
-                payment.external_payment_id
-            ),
+            subscription_days=(payment.subscription_days),
+            external_payment_id=(payment.external_payment_id),
             error_message=payment.error_message,
             created_at=payment.created_at,
         )
@@ -667,13 +481,9 @@ async def mark_payment_for_review(
     error_message: str,
 ) -> None:
     async with async_session_factory() as session:
-        repository = PaymentRepository(
-            session
-        )
+        repository = PaymentRepository(session)
 
-        payment = await repository.get_by_id_for_update(
-            payment_id
-        )
+        payment = await repository.get_by_id_for_update(payment_id)
 
         if payment is None:
             return
@@ -682,14 +492,9 @@ async def mark_payment_for_review(
             return
 
         if payment.external_payment_id is None:
-            existing = await repository.get_by_external_id(
-                telegram_payment_charge_id
-            )
+            existing = await repository.get_by_external_id(telegram_payment_charge_id)
 
-            if (
-                existing is None
-                or existing.id == payment.id
-            ):
+            if existing is None or existing.id == payment.id:
                 await repository.set_external_id(
                     payment,
                     telegram_payment_charge_id,
@@ -702,41 +507,29 @@ async def mark_payment_for_review(
 
         await session.commit()
 
+
 async def retry_payment_activation(
     *,
     payment_id: int,
 ) -> bool:
-    now = datetime.now(
-        timezone.utc
-    )
+    now = datetime.now(timezone.utc)
 
     async with async_session_factory() as session:
-        repository = PaymentRepository(
-            session
-        )
+        repository = PaymentRepository(session)
 
-        payment = await repository.get_by_id_for_update(
-            payment_id
-        )
+        payment = await repository.get_by_id_for_update(payment_id)
 
         if payment is None:
-            raise PaymentNotFound(
-                "Платёж не найден."
-            )
+            raise PaymentNotFound("Платёж не найден.")
 
         if payment.status == "succeeded":
             return False
 
         if payment.status != "review":
-            raise PaymentError(
-                "Платёж не требует сверки."
-            )
+            raise PaymentError("Платёж не требует сверки.")
 
         if payment.external_payment_id is None:
-            raise PaymentError(
-                "Нет подтверждённого "
-                "Telegram charge ID."
-            )
+            raise PaymentError("Нет подтверждённого Telegram charge ID.")
 
         await activate_or_extend_subscription_in_session(
             session=session,

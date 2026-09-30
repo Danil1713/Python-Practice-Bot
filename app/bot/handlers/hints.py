@@ -21,9 +21,7 @@ from app.services.subscription_service import (
 router = Router()
 
 
-@router.callback_query(
-    F.data.startswith("project:hints:")
-)
+@router.callback_query(F.data.startswith("project:hints:"))
 async def hints_list_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -58,15 +56,12 @@ async def hints_list_handler(
 
     if not active:
         await callback.answer(
-            "🔒 Подсказки доступны только "
-            "при активной подписке.",
+            "🔒 Подсказки доступны только при активной подписке.",
             show_alert=True,
         )
         return
 
-    view = await get_project_hints(
-        project_id
-    )
+    view = await get_project_hints(project_id)
 
     if view is None:
         await callback.answer(
@@ -77,8 +72,7 @@ async def hints_list_handler(
 
     if not view.hints:
         await callback.answer(
-            "Для этого проекта пока "
-            "нет подсказок.",
+            "Для этого проекта пока нет подсказок.",
             show_alert=True,
         )
         return
@@ -99,9 +93,7 @@ async def hints_list_handler(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith("hint:open:")
-)
+@router.callback_query(F.data.startswith("hint:open:"))
 async def hint_open_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -117,9 +109,7 @@ async def hint_open_handler(
         )
         return
 
-    view = await get_hint_open_view(
-        hint_id
-    )
+    view = await get_hint_open_view(hint_id)
 
     if view is None:
         await callback.answer(
@@ -135,16 +125,14 @@ async def hint_open_handler(
 
     if not active:
         await callback.answer(
-            "🔒 Подсказки доступны только "
-            "при активной подписке.",
+            "🔒 Подсказки доступны только при активной подписке.",
             show_alert=True,
         )
         return
 
     if not view.is_published:
         await callback.answer(
-            "🔒 Эта подсказка ещё "
-            "не опубликована.",
+            "🔒 Эта подсказка ещё не опубликована.",
             show_alert=True,
         )
         return

@@ -4,9 +4,7 @@ def split_telegram_text(
     max_chars: int = 3500,
 ) -> list[str]:
     if max_chars <= 0:
-        raise ValueError(
-            "max_chars must be greater than 0"
-        )
+        raise ValueError("max_chars must be greater than 0")
 
     if not text:
         return []
@@ -46,9 +44,7 @@ def split_telegram_lines(
     max_chars: int = 3500,
 ) -> list[str]:
     if max_chars <= 0:
-        raise ValueError(
-            "max_chars must be greater than 0"
-        )
+        raise ValueError("max_chars must be greater than 0")
 
     if not lines:
         return []
@@ -63,28 +59,15 @@ def split_telegram_lines(
         if current_lines:
             added_length += 1
 
-        if (
-            current_lines
-            and current_length
-            + added_length
-            > max_chars
-        ):
-            chunks.append(
-                "\n".join(
-                    current_lines
-                )
-            )
+        if current_lines and current_length + added_length > max_chars:
+            chunks.append("\n".join(current_lines))
 
             current_lines = []
             current_length = 0
 
         if len(line) > max_chars:
             if current_lines:
-                chunks.append(
-                    "\n".join(
-                        current_lines
-                    )
-                )
+                chunks.append("\n".join(current_lines))
 
                 current_lines = []
                 current_length = 0
@@ -94,22 +77,14 @@ def split_telegram_lines(
                 max_chars=max_chars,
             )
 
-            chunks.extend(
-                line_chunks
-            )
+            chunks.extend(line_chunks)
             continue
 
-        current_lines.append(
-            line
-        )
+        current_lines.append(line)
 
         current_length += added_length
 
     if current_lines:
-        chunks.append(
-            "\n".join(
-                current_lines
-            )
-        )
+        chunks.append("\n".join(current_lines))
 
     return chunks

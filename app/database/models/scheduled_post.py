@@ -21,14 +21,11 @@ class ScheduledPost(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "post_type IN "
-            "('regular', 'project', 'hint')",
+            "post_type IN ('regular', 'project', 'hint')",
             name="ck_scheduled_posts_post_type",
         ),
         CheckConstraint(
-            "status IN "
-            "('scheduled', 'publishing', "
-            "'published', 'failed', 'cancelled')",
+            "status IN ('scheduled', 'publishing', 'published', 'failed', 'cancelled')",
             name="ck_scheduled_posts_status",
         ),
         CheckConstraint(
@@ -47,19 +44,14 @@ class ScheduledPost(Base):
                 "AND hint_id IS NOT NULL"
                 ")"
             ),
-            name=(
-                "ck_scheduled_posts_"
-                "entity_by_type"
-            ),
+            name=("ck_scheduled_posts_entity_by_type"),
         ),
         Index(
             "uq_scheduled_posts_active_project",
             "project_id",
             unique=True,
             postgresql_where=text(
-                "project_id IS NOT NULL "
-                "AND status IN "
-                "('scheduled', 'publishing')"
+                "project_id IS NOT NULL AND status IN ('scheduled', 'publishing')"
             ),
         ),
         Index(
@@ -67,9 +59,7 @@ class ScheduledPost(Base):
             "hint_id",
             unique=True,
             postgresql_where=text(
-                "hint_id IS NOT NULL "
-                "AND status IN "
-                "('scheduled', 'publishing')"
+                "hint_id IS NOT NULL AND status IN ('scheduled', 'publishing')"
             ),
         ),
     )
@@ -121,11 +111,9 @@ class ScheduledPost(Base):
         index=True,
     )
 
-    publishing_started_at: Mapped[datetime | None] = (
-        mapped_column(
-            DateTime(timezone=True),
-            nullable=True,
-        )
+    publishing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     status: Mapped[str] = mapped_column(

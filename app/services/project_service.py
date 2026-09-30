@@ -79,63 +79,35 @@ async def get_course_projects(
     course_slug: str,
 ) -> CourseProjectsView | None:
     async with async_session_factory() as session:
-        course_repository = CourseRepository(
-            session
-        )
-        user_repository = UserRepository(
-            session
-        )
-        project_repository = ProjectRepository(
-            session
-        )
-        user_project_repository = (
-            UserProjectRepository(session)
-        )
-        attempt_repository = AttemptRepository(
-            session
-        )
+        course_repository = CourseRepository(session)
+        user_repository = UserRepository(session)
+        project_repository = ProjectRepository(session)
+        user_project_repository = UserProjectRepository(session)
+        attempt_repository = AttemptRepository(session)
 
-        course = await course_repository.get_by_slug(
-            course_slug
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
             return None
 
-        projects = await project_repository.get_by_course(
-            course.id
-        )
+        projects = await project_repository.get_by_course(course.id)
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_user_id
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         completed_ids: set[int] = set()
 
         if user is not None:
-            completed_ids = (
-                await user_project_repository
-                .get_completed_project_ids(
-                    user_id=user.id,
-                    project_ids=[
-                        project.id
-                        for project in projects
-                    ],
-                )
+            completed_ids = await user_project_repository.get_completed_project_ids(
+                user_id=user.id,
+                project_ids=[project.id for project in projects],
             )
 
         pending_ids: set[int] = set()
 
         if user is not None:
-            pending_ids = (
-                await attempt_repository
-                .get_pending_project_ids(
-                    user_id=user.id,
-                    project_ids=[
-                        project.id
-                        for project in projects
-                    ],
-                )
+            pending_ids = await attempt_repository.get_pending_project_ids(
+                user_id=user.id,
+                project_ids=[project.id for project in projects],
             )
 
         items: list[ProjectListItem] = []
@@ -174,63 +146,39 @@ async def get_project_card(
     project_id: int,
 ) -> ProjectCard | None:
     async with async_session_factory() as session:
-        project_repository = ProjectRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
-        user_repository = UserRepository(
-            session
-        )
-        user_project_repository = (
-            UserProjectRepository(session)
-        )
-        hint_repository = HintRepository(
-            session
-        )
-        attempt_repository = AttemptRepository(
-            session
-        )
+        project_repository = ProjectRepository(session)
+        course_repository = CourseRepository(session)
+        user_repository = UserRepository(session)
+        user_project_repository = UserProjectRepository(session)
+        hint_repository = HintRepository(session)
+        attempt_repository = AttemptRepository(session)
 
-        project = await project_repository.get_by_id(
-            project_id
-        )
+        project = await project_repository.get_by_id(project_id)
 
         if project is None:
             return None
 
-        course = await course_repository.get_by_id(
-            project.course_id
-        )
+        course = await course_repository.get_by_id(project.course_id)
 
         if course is None:
             return None
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_user_id
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         completed = None
 
         if user is not None:
-            completed = (
-                await user_project_repository
-                .get_completed_project(
-                    user_id=user.id,
-                    project_id=project.id,
-                )
+            completed = await user_project_repository.get_completed_project(
+                user_id=user.id,
+                project_id=project.id,
             )
 
         pending_attempt = None
 
         if user is not None:
-            pending_attempt = (
-                await attempt_repository
-                .get_active_for_project(
-                    user_id=user.id,
-                    project_id=project.id,
-                )
+            pending_attempt = await attempt_repository.get_active_for_project(
+                user_id=user.id,
+                project_id=project.id,
             )
 
         if completed is not None:
@@ -245,17 +193,10 @@ async def get_project_card(
         else:
             status = "available"
 
-        latest_hint = (
-            await hint_repository
-            .get_latest_published(
-                project.id
-            )
-        )
+        latest_hint = await hint_repository.get_latest_published(project.id)
 
         if latest_hint is not None:
-            current_xp = (
-                latest_hint.xp_after_publish
-            )
+            current_xp = latest_hint.xp_after_publish
         else:
             current_xp = project.max_xp
 
@@ -268,17 +209,9 @@ async def get_project_card(
             status=status,
             max_xp=project.max_xp,
             current_xp=current_xp,
-            awarded_xp=(
-                completed.awarded_xp
-                if completed is not None
-                else None
-            ),
-            telegram_message_id=(
-                project.telegram_message_id
-            ),
-            telegram_channel_id=(
-                course.telegram_channel_id
-            ),
+            awarded_xp=(completed.awarded_xp if completed is not None else None),
+            telegram_message_id=(project.telegram_message_id),
+            telegram_channel_id=(course.telegram_channel_id),
         )
 
 
@@ -291,47 +224,26 @@ async def create_project(
     ai_requirements = ai_requirements.strip()
 
     if not title:
-        raise ProjectCreationError(
-            "Название проекта не может быть пустым."
-        )
+        raise ProjectCreationError("Название проекта не может быть пустым.")
 
     if len(title) > 255:
-        raise ProjectCreationError(
-            "Название проекта не должно превышать "
-            "255 символов."
-        )
+        raise ProjectCreationError("Название проекта не должно превышать 255 символов.")
 
     if not ai_requirements:
-        raise ProjectCreationError(
-            "Обязательные критерии не могут быть пустыми."
-        )
+        raise ProjectCreationError("Обязательные критерии не могут быть пустыми.")
 
     async with async_session_factory() as session:
-        course_repository = CourseRepository(
-            session
-        )
-        project_repository = ProjectRepository(
-            session
-        )
+        course_repository = CourseRepository(session)
+        project_repository = ProjectRepository(session)
 
-        course = await course_repository.get_by_slug(
-            course_slug
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
-            raise ProjectCreationError(
-                "Курс не найден или недоступен."
-            )
+            raise ProjectCreationError("Курс не найден или недоступен.")
 
-        await project_repository.lock_creation(
-            course.id
-        )
+        await project_repository.lock_creation(course.id)
 
-        number = (
-            await project_repository.get_next_number(
-                course.id
-            )
-        )
+        number = await project_repository.get_next_number(course.id)
 
         try:
             project = await project_repository.create(
@@ -347,8 +259,7 @@ async def create_project(
             await session.rollback()
 
             raise ProjectCreationError(
-                "Не удалось создать проект "
-                "из-за конфликта данных."
+                "Не удалось создать проект из-за конфликта данных."
             ) from error
 
         return CreatedProject(

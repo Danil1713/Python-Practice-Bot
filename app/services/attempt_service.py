@@ -91,27 +91,17 @@ async def create_attempt(
 ) -> CreatedAttempt:
     async with async_session_factory() as session:
         user_repository = UserRepository(session)
-        project_repository = ProjectRepository(
-            session
-        )
-        attempt_repository = AttemptRepository(
-            session
-        )
+        project_repository = ProjectRepository(session)
+        attempt_repository = AttemptRepository(session)
         hint_repository = HintRepository(session)
-        user_project_repository = (
-            UserProjectRepository(session)
-        )
+        user_project_repository = UserProjectRepository(session)
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_user_id
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         if user is None:
             raise AttemptUserNotFound
 
-        project = await project_repository.get_by_id(
-            project_id
-        )
+        project = await project_repository.get_by_id(project_id)
 
         if project is None:
             raise AttemptProjectNotFound
@@ -119,71 +109,46 @@ async def create_attempt(
         if project.published_at is None:
             raise AttemptProjectLocked
 
-        ai_checks_used = (
-            await attempt_repository
-            .count_ai_checks(
-                user_id=user.id,
-                project_id=project.id,
-            )
+        ai_checks_used = await attempt_repository.count_ai_checks(
+            user_id=user.id,
+            project_id=project.id,
         )
 
-        if (
-                ai_checks_used
-                >= MAX_AI_CHECKS_PER_PROJECT
-        ):
-            raise AttemptAILimitReached(
-                "Лимит AI-проверок "
-                "для этого Project исчерпан."
-            )
+        if ai_checks_used >= MAX_AI_CHECKS_PER_PROJECT:
+            raise AttemptAILimitReached("Лимит AI-проверок для этого Project исчерпан.")
 
         await attempt_repository.lock_attempt_creation(
             user_id=user.id,
             project_id=project.id,
         )
 
-        active_attempt = (
-            await attempt_repository
-            .get_active_for_project(
-                user_id=user.id,
-                project_id=project.id,
-            )
+        active_attempt = await attempt_repository.get_active_for_project(
+            user_id=user.id,
+            project_id=project.id,
         )
 
         if active_attempt is not None:
             raise AttemptAlreadyPending
 
-        completed = (
-            await user_project_repository
-            .get_completed_project(
-                user_id=user.id,
-                project_id=project.id,
-            )
+        completed = await user_project_repository.get_completed_project(
+            user_id=user.id,
+            project_id=project.id,
         )
 
         if completed is not None:
             xp_snapshot = 0
 
         else:
-            latest_hint = (
-                await hint_repository
-                .get_latest_published(
-                    project.id
-                )
-            )
+            latest_hint = await hint_repository.get_latest_published(project.id)
 
             if latest_hint is not None:
-                xp_snapshot = (
-                    latest_hint.xp_after_publish
-                )
+                xp_snapshot = latest_hint.xp_after_publish
             else:
                 xp_snapshot = project.max_xp
 
-        attempt_number = (
-            await attempt_repository
-            .get_next_attempt_number(
-                user_id=user.id,
-                project_id=project.id,
-            )
+        attempt_number = await attempt_repository.get_next_attempt_number(
+            user_id=user.id,
+            project_id=project.id,
         )
 
         try:
@@ -194,9 +159,7 @@ async def create_attempt(
                 filename=filename,
                 source_code=source_code,
                 xp_snapshot=xp_snapshot,
-                requirements_snapshot=(
-                        project.ai_requirements or ""
-                ),
+                requirements_snapshot=(project.ai_requirements or ""),
             )
 
             await session.commit()
@@ -205,8 +168,7 @@ async def create_attempt(
             await session.rollback()
 
             raise AttemptError(
-                "Не удалось сохранить попытку "
-                "из-за конфликта данных."
+                "Не удалось сохранить попытку из-за конфликта данных."
             ) from error
 
         return CreatedAttempt(
@@ -222,43 +184,28 @@ async def get_project_attempts(
 ) -> ProjectAttemptsView | None:
     async with async_session_factory() as session:
         user_repository = UserRepository(session)
-        project_repository = ProjectRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
-        attempt_repository = AttemptRepository(
-            session
-        )
+        project_repository = ProjectRepository(session)
+        course_repository = CourseRepository(session)
+        attempt_repository = AttemptRepository(session)
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_user_id
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         if user is None:
             return None
 
-        project = await project_repository.get_by_id(
-            project_id
-        )
+        project = await project_repository.get_by_id(project_id)
 
         if project is None:
             return None
 
-        course = await course_repository.get_by_id(
-            project.course_id
-        )
+        course = await course_repository.get_by_id(project.course_id)
 
         if course is None:
             return None
 
-        attempts = (
-            await attempt_repository
-            .get_by_project_for_user(
-                user_id=user.id,
-                project_id=project.id,
-            )
+        attempts = await attempt_repository.get_by_project_for_user(
+            user_id=user.id,
+            project_id=project.id,
         )
 
         return ProjectAttemptsView(
@@ -271,12 +218,8 @@ async def get_project_attempts(
                     id=attempt.id,
                     number=attempt.attempt_number,
                     status=attempt.status,
-                    submitted_at=(
-                        attempt.submitted_at
-                    ),
-                    xp_snapshot=(
-                        attempt.xp_snapshot
-                    ),
+                    submitted_at=(attempt.submitted_at),
+                    xp_snapshot=(attempt.xp_snapshot),
                 )
                 for attempt in attempts
             ],
@@ -289,34 +232,23 @@ async def get_attempt_detail(
 ) -> AttemptDetail | None:
     async with async_session_factory() as session:
         user_repository = UserRepository(session)
-        project_repository = ProjectRepository(
-            session
-        )
-        attempt_repository = AttemptRepository(
-            session
-        )
+        project_repository = ProjectRepository(session)
+        attempt_repository = AttemptRepository(session)
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_user_id
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         if user is None:
             return None
 
-        attempt = (
-            await attempt_repository
-            .get_by_id_for_user(
-                attempt_id=attempt_id,
-                user_id=user.id,
-            )
+        attempt = await attempt_repository.get_by_id_for_user(
+            attempt_id=attempt_id,
+            user_id=user.id,
         )
 
         if attempt is None:
             return None
 
-        project = await project_repository.get_by_id(
-            attempt.project_id
-        )
+        project = await project_repository.get_by_id(attempt.project_id)
 
         if project is None:
             return None
@@ -337,19 +269,16 @@ async def get_attempt_detail(
             checked_at=attempt.checked_at,
         )
 
+
 async def save_attempt_status_message(
     attempt_id: int,
     chat_id: int,
     message_id: int,
 ) -> None:
     async with async_session_factory() as session:
-        attempt_repository = AttemptRepository(
-            session
-        )
+        attempt_repository = AttemptRepository(session)
 
-        attempt = await attempt_repository.get_by_id(
-            attempt_id
-        )
+        attempt = await attempt_repository.get_by_id(attempt_id)
 
         if attempt is None:
             return
@@ -368,18 +297,11 @@ async def mark_attempt_setup_error(
     error_message: str,
 ) -> None:
     async with async_session_factory() as session:
-        attempt_repository = AttemptRepository(
-            session
-        )
+        attempt_repository = AttemptRepository(session)
 
-        attempt = await attempt_repository.get_by_id(
-            attempt_id
-        )
+        attempt = await attempt_repository.get_by_id(attempt_id)
 
-        if (
-            attempt is None
-            or attempt.status != "pending"
-        ):
+        if attempt is None or attempt.status != "pending":
             return
 
         await attempt_repository.mark_error(

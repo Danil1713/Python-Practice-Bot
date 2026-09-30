@@ -31,13 +31,9 @@ async def test_attempt_batch_respects_concurrency(
                 active,
             )
 
-        await asyncio.sleep(
-            0.03
-        )
+        await asyncio.sleep(0.03)
 
-        processed.append(
-            attempt_id
-        )
+        processed.append(attempt_id)
 
         async with lock:
             active -= 1
@@ -83,13 +79,9 @@ async def test_attempt_failure_does_not_stop_batch(
         bot,
     ) -> None:
         if attempt_id == 2:
-            raise RuntimeError(
-                "Test failure"
-            )
+            raise RuntimeError("Test failure")
 
-        processed.append(
-            attempt_id
-        )
+        processed.append(attempt_id)
 
     monkeypatch.setattr(
         attempt_checks,

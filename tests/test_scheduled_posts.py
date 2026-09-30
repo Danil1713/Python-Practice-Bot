@@ -30,13 +30,9 @@ from app.services.schedule_service import (
 
 @pytest.mark.asyncio
 async def test_scheduled_post_can_be_claimed_only_once():
-    database_url = os.environ[
-        "DATABASE_URL"
-    ]
+    database_url = os.environ["DATABASE_URL"]
 
-    engine = create_async_engine(
-        database_url
-    )
+    engine = create_async_engine(database_url)
 
     session_factory = async_sessionmaker(
         bind=engine,
@@ -60,10 +56,7 @@ async def test_scheduled_post_can_be_claimed_only_once():
                 course_id=course.id,
                 post_type="regular",
                 content="Test publication",
-                scheduled_at=(
-                    datetime.now(timezone.utc)
-                    - timedelta(minutes=1)
-                ),
+                scheduled_at=(datetime.now(timezone.utc) - timedelta(minutes=1)),
                 status="scheduled",
             )
 
@@ -74,28 +67,17 @@ async def test_scheduled_post_can_be_claimed_only_once():
 
         async def claim_post() -> bool:
             async with session_factory() as session:
-                repository = (
-                    ScheduledPostRepository(
-                        session
-                    )
-                )
+                repository = ScheduledPostRepository(session)
 
-                claimed = (
-                    await repository
-                    .claim_scheduled(
-                        post_id
-                    )
-                )
+                claimed = await repository.claim_scheduled(post_id)
 
                 await session.commit()
 
                 return claimed
 
-        first_result, second_result = (
-            await asyncio.gather(
-                claim_post(),
-                claim_post(),
-            )
+        first_result, second_result = await asyncio.gather(
+            claim_post(),
+            claim_post(),
         )
 
         assert sorted(
@@ -109,30 +91,15 @@ async def test_scheduled_post_can_be_claimed_only_once():
         ]
 
         async with session_factory() as session:
-            statement = select(
-                ScheduledPost
-            ).where(
-                ScheduledPost.id == post_id
-            )
+            statement = select(ScheduledPost).where(ScheduledPost.id == post_id)
 
-            result = await session.execute(
-                statement
-            )
+            result = await session.execute(statement)
 
-            stored_post = (
-                result.scalar_one()
-            )
+            stored_post = result.scalar_one()
 
-            assert (
-                stored_post.status
-                == "publishing"
-            )
+            assert stored_post.status == "publishing"
 
-            assert (
-                stored_post
-                .publishing_started_at
-                is not None
-            )
+            assert stored_post.publishing_started_at is not None
 
     finally:
         await engine.dispose()
@@ -140,13 +107,9 @@ async def test_scheduled_post_can_be_claimed_only_once():
 
 @pytest.mark.asyncio
 async def test_publish_now_does_not_report_success_when_telegram_fails():
-    database_url = os.environ[
-        "DATABASE_URL"
-    ]
+    database_url = os.environ["DATABASE_URL"]
 
-    engine = create_async_engine(
-        database_url
-    )
+    engine = create_async_engine(database_url)
 
     session_factory = async_sessionmaker(
         bind=engine,
@@ -173,10 +136,7 @@ async def test_publish_now_does_not_report_success_when_telegram_fails():
                 course_id=course.id,
                 post_type="regular",
                 content="Test publication",
-                scheduled_at=(
-                    datetime.now(timezone.utc)
-                    + timedelta(hours=1)
-                ),
+                scheduled_at=(datetime.now(timezone.utc) + timedelta(hours=1)),
                 status="scheduled",
             )
 
@@ -187,15 +147,11 @@ async def test_publish_now_does_not_report_success_when_telegram_fails():
 
         bot = AsyncMock()
 
-        bot.send_message.side_effect = RuntimeError(
-            "Telegram unavailable"
-        )
+        bot.send_message.side_effect = RuntimeError("Telegram unavailable")
 
         with pytest.raises(
             ScheduleError,
-            match=(
-                "Публикация не была отправлена"
-            ),
+            match=("Публикация не была отправлена"),
         ):
             await publish_post_now(
                 post_id=post_id,
@@ -208,39 +164,21 @@ async def test_publish_now_does_not_report_success_when_telegram_fails():
         )
 
         async with session_factory() as session:
-            statement = select(
-                ScheduledPost
-            ).where(
-                ScheduledPost.id == post_id
-            )
+            statement = select(ScheduledPost).where(ScheduledPost.id == post_id)
 
-            result = await session.execute(
-                statement
-            )
+            result = await session.execute(statement)
 
             stored_post = result.scalar_one()
 
             assert stored_post.status == "failed"
 
-            assert (
-                stored_post.publishing_started_at
-                is None
-            )
+            assert stored_post.publishing_started_at is None
 
-            assert (
-                stored_post.error_message
-                == "Telegram unavailable"
-            )
+            assert stored_post.error_message == "Telegram unavailable"
 
-            assert (
-                stored_post.published_at
-                is None
-            )
+            assert stored_post.published_at is None
 
-            assert (
-                stored_post.telegram_message_id
-                is None
-            )
+            assert stored_post.telegram_message_id is None
 
     finally:
         await engine.dispose()

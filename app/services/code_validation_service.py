@@ -23,14 +23,9 @@ def validate_python_syntax(
     except SyntaxError as error:
         return PythonSyntaxCheckResult(
             valid=False,
-            error_message=(
-                error.msg
-                or "Синтаксическая ошибка"
-            ),
+            error_message=(error.msg or "Синтаксическая ошибка"),
             line=error.lineno,
             column=error.offset,
         )
 
-    return PythonSyntaxCheckResult(
-        valid=True
-    )
+    return PythonSyntaxCheckResult(valid=True)

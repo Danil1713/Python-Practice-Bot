@@ -35,19 +35,13 @@ async def start_handler(
         first_name=telegram_user.first_name,
     )
 
-    await clear_current_course(
-        telegram_user.id
-    )
+    await clear_current_course(telegram_user.id)
 
     courses = await get_active_courses()
 
     await message.answer(
         text=(
-            "👋 <b>Добро пожаловать!</b>\n\n"
-            "Выбери уровень, "
-            "с которым хочешь работать:"
+            "👋 <b>Добро пожаловать!</b>\n\nВыбери уровень, с которым хочешь работать:"
         ),
-        reply_markup=get_courses_keyboard(
-            courses
-        ),
+        reply_markup=get_courses_keyboard(courses),
     )

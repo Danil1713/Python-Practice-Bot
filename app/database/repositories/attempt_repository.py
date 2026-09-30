@@ -19,9 +19,9 @@ class AttemptRepository:
         self.session = session
 
     async def lock_attempt_creation(
-            self,
-            user_id: int,
-            project_id: int,
+        self,
+        user_id: int,
+        project_id: int,
     ) -> None:
         statement = select(
             func.pg_advisory_xact_lock(
@@ -30,9 +30,7 @@ class AttemptRepository:
             )
         )
 
-        await self.session.execute(
-            statement
-        )
+        await self.session.execute(statement)
 
     async def get_next_attempt_number(
         self,
@@ -49,23 +47,21 @@ class AttemptRepository:
             Attempt.project_id == project_id,
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         current_max = result.scalar_one()
 
         return current_max + 1
 
     async def create(
-            self,
-            user_id: int,
-            project_id: int,
-            attempt_number: int,
-            filename: str,
-            source_code: str,
-            xp_snapshot: int,
-            requirements_snapshot: str,
+        self,
+        user_id: int,
+        project_id: int,
+        attempt_number: int,
+        filename: str,
+        source_code: str,
+        xp_snapshot: int,
+        requirements_snapshot: str,
     ) -> Attempt:
         attempt = Attempt(
             user_id=user_id,
@@ -92,14 +88,10 @@ class AttemptRepository:
         statement = select(Attempt).where(
             Attempt.user_id == user_id,
             Attempt.project_id == project_id,
-            Attempt.status.in_(
-                ACTIVE_STATUSES
-            ),
+            Attempt.status.in_(ACTIVE_STATUSES),
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
@@ -111,25 +103,15 @@ class AttemptRepository:
         if not project_ids:
             return set()
 
-        statement = select(
-            Attempt.project_id
-        ).where(
+        statement = select(Attempt.project_id).where(
             Attempt.user_id == user_id,
-            Attempt.project_id.in_(
-                project_ids
-            ),
-            Attempt.status.in_(
-                ACTIVE_STATUSES
-            ),
+            Attempt.project_id.in_(project_ids),
+            Attempt.status.in_(ACTIVE_STATUSES),
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return set(
-            result.scalars().all()
-        )
+        return set(result.scalars().all())
 
     async def get_by_project_for_user(
         self,
@@ -142,18 +124,12 @@ class AttemptRepository:
                 Attempt.user_id == user_id,
                 Attempt.project_id == project_id,
             )
-            .order_by(
-                Attempt.attempt_number.desc()
-            )
+            .order_by(Attempt.attempt_number.desc())
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def get_by_id_for_user(
         self,
@@ -165,96 +141,82 @@ class AttemptRepository:
             Attempt.user_id == user_id,
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def get_by_id(
-            self,
-            attempt_id: int,
+        self,
+        attempt_id: int,
     ) -> Attempt | None:
-        statement = select(Attempt).where(
-            Attempt.id == attempt_id
-        )
+        statement = select(Attempt).where(Attempt.id == attempt_id)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def mark_checking(
-            self,
-            attempt: Attempt,
+        self,
+        attempt: Attempt,
     ) -> None:
         attempt.status = "checking"
 
         await self.session.flush()
 
     async def mark_passed(
-            self,
-            attempt: Attempt,
-            feedback: str,
+        self,
+        attempt: Attempt,
+        feedback: str,
     ) -> None:
         attempt.status = "passed"
         attempt.ai_feedback = feedback
         attempt.error_message = None
         attempt.checking_started_at = None
-        attempt.checked_at = datetime.now(
-            timezone.utc
-        )
+        attempt.checked_at = datetime.now(timezone.utc)
 
         await self.session.flush()
 
     async def mark_failed(
-            self,
-            attempt: Attempt,
-            feedback: str,
+        self,
+        attempt: Attempt,
+        feedback: str,
     ) -> None:
         attempt.status = "failed"
         attempt.ai_feedback = feedback
         attempt.error_message = None
         attempt.checking_started_at = None
-        attempt.checked_at = datetime.now(
-            timezone.utc
-        )
+        attempt.checked_at = datetime.now(timezone.utc)
 
         await self.session.flush()
 
     async def mark_review(
-            self,
-            attempt: Attempt,
-            feedback: str,
+        self,
+        attempt: Attempt,
+        feedback: str,
     ) -> None:
         attempt.status = "review"
         attempt.ai_feedback = feedback
         attempt.error_message = None
         attempt.checking_started_at = None
-        attempt.checked_at = datetime.now(
-            timezone.utc
-        )
+        attempt.checked_at = datetime.now(timezone.utc)
 
         await self.session.flush()
 
     async def mark_error(
-            self,
-            attempt: Attempt,
-            error_message: str,
+        self,
+        attempt: Attempt,
+        error_message: str,
     ) -> None:
         attempt.status = "error"
         attempt.error_message = error_message
         attempt.checking_started_at = None
-        attempt.checked_at = datetime.now(
-            timezone.utc
-        )
+        attempt.checked_at = datetime.now(timezone.utc)
 
         await self.session.flush()
 
     async def get_pending(
-            self,
-            limit: int = 10,
+        self,
+        limit: int = 10,
     ) -> list[Attempt]:
         statement = (
             select(Attempt)
@@ -263,25 +225,19 @@ class AttemptRepository:
                 Attempt.status_chat_id.is_not(None),
                 Attempt.status_message_id.is_not(None),
             )
-            .order_by(
-                Attempt.submitted_at.asc()
-            )
+            .order_by(Attempt.submitted_at.asc())
             .limit(limit)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def set_status_message(
-            self,
-            attempt: Attempt,
-            chat_id: int,
-            message_id: int,
+        self,
+        attempt: Attempt,
+        chat_id: int,
+        message_id: int,
     ) -> None:
         attempt.status_chat_id = chat_id
         attempt.status_message_id = message_id
@@ -289,8 +245,8 @@ class AttemptRepository:
         await self.session.flush()
 
     async def claim_pending(
-            self,
-            attempt_id: int,
+        self,
+        attempt_id: int,
     ) -> bool:
         statement = (
             update(Attempt)
@@ -300,44 +256,30 @@ class AttemptRepository:
             )
             .values(
                 status="checking",
-                checking_started_at=datetime.now(
-                    timezone.utc
-                ),
+                checking_started_at=datetime.now(timezone.utc),
             )
-            .returning(
-                Attempt.id
-            )
+            .returning(Attempt.id)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         claimed_id = result.scalar_one_or_none()
 
         return claimed_id is not None
 
     async def recover_stuck_checking(
-            self,
-            before: datetime,
+        self,
+        before: datetime,
     ) -> int:
-        statement = select(
-            Attempt
-        ).where(
+        statement = select(Attempt).where(
             Attempt.status == "checking",
-            Attempt.checking_started_at.is_not(
-                None
-            ),
+            Attempt.checking_started_at.is_not(None),
             Attempt.checking_started_at <= before,
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        attempts = list(
-            result.scalars().all()
-        )
+        attempts = list(result.scalars().all())
 
         for attempt in attempts:
             attempt.status = "pending"
@@ -348,60 +290,41 @@ class AttemptRepository:
         return len(attempts)
 
     async def set_evaluation_metadata(
-            self,
-            attempt: Attempt,
-            *,
-            evaluation_version: str,
-            ai_model: str | None,
-            ai_policy_version: str | None,
-            ai_result_json: str | None,
+        self,
+        attempt: Attempt,
+        *,
+        evaluation_version: str,
+        ai_model: str | None,
+        ai_policy_version: str | None,
+        ai_result_json: str | None,
     ) -> None:
-        attempt.evaluation_version = (
-            evaluation_version
-        )
+        attempt.evaluation_version = evaluation_version
         attempt.ai_model = ai_model
-        attempt.ai_policy_version = (
-            ai_policy_version
-        )
-        attempt.ai_result_json = (
-            ai_result_json
-        )
+        attempt.ai_policy_version = ai_policy_version
+        attempt.ai_result_json = ai_result_json
 
         await self.session.flush()
 
     async def recover_stuck_pending_setup(
-            self,
-            before: datetime,
+        self,
+        before: datetime,
     ) -> int:
-        statement = select(
-            Attempt
-        ).where(
+        statement = select(Attempt).where(
             Attempt.status == "pending",
             Attempt.submitted_at <= before,
-            (
-                    Attempt.status_chat_id.is_(None)
-                    | Attempt.status_message_id.is_(None)
-            ),
+            (Attempt.status_chat_id.is_(None) | Attempt.status_message_id.is_(None)),
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        attempts = list(
-            result.scalars().all()
-        )
+        attempts = list(result.scalars().all())
 
-        now = datetime.now(
-            timezone.utc
-        )
+        now = datetime.now(timezone.utc)
 
         for attempt in attempts:
             attempt.status = "error"
             attempt.error_message = (
-                "Не удалось подготовить "
-                "Telegram-сообщение "
-                "для результата проверки."
+                "Не удалось подготовить Telegram-сообщение для результата проверки."
             )
             attempt.checking_started_at = None
             attempt.checked_at = now
@@ -410,28 +333,18 @@ class AttemptRepository:
 
         return len(attempts)
 
-
     async def count_ai_checks(
-            self,
-            *,
-            user_id: int,
-            project_id: int,
+        self,
+        *,
+        user_id: int,
+        project_id: int,
     ) -> int:
-        statement = (
-            select(
-                func.count(Attempt.id)
-            )
-            .where(
-                Attempt.user_id == user_id,
-                Attempt.project_id == project_id,
-                Attempt.ai_model.is_not(None),
-            )
+        statement = select(func.count(Attempt.id)).where(
+            Attempt.user_id == user_id,
+            Attempt.project_id == project_id,
+            Attempt.ai_model.is_not(None),
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return int(
-            result.scalar_one()
-        )
+        return int(result.scalar_one())

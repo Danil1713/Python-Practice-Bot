@@ -68,9 +68,7 @@ async def mark_project_published(
 
         assert project is not None
 
-        project.published_at = datetime.now(
-            timezone.utc
-        )
+        project.published_at = datetime.now(timezone.utc)
 
         await session.commit()
 
@@ -115,23 +113,11 @@ async def test_unpublished_projects_only(
 
     await db_session.flush()
 
-    repository = ProjectRepository(
-        db_session
-    )
+    repository = ProjectRepository(db_session)
 
-    projects = (
-        await repository
-        .get_unpublished_by_course(
-            course.id
-        )
-    )
+    projects = await repository.get_unpublished_by_course(course.id)
 
-    assert [
-        project.id
-        for project in projects
-    ] == [
-        unpublished.id
-    ]
+    assert [project.id for project in projects] == [unpublished.id]
 
 
 @pytest.mark.asyncio
@@ -154,31 +140,17 @@ async def test_project_without_hints_is_available_for_hint(
         title="Project Without Hints",
         max_xp=100,
         ai_requirements="Requirements",
-        published_at=datetime.now(
-            timezone.utc
-        ),
+        published_at=datetime.now(timezone.utc),
     )
 
     db_session.add(project)
     await db_session.flush()
 
-    repository = ProjectRepository(
-        db_session
-    )
+    repository = ProjectRepository(db_session)
 
-    projects = (
-        await repository
-        .get_available_for_hint_by_course(
-            course.id
-        )
-    )
+    projects = await repository.get_available_for_hint_by_course(course.id)
 
-    assert [
-        item.id
-        for item in projects
-    ] == [
-        project.id
-    ]
+    assert [item.id for item in projects] == [project.id]
 
 
 @pytest.mark.asyncio
@@ -201,9 +173,7 @@ async def test_project_with_unpublished_hint_is_available(
         title="Project Without Hints",
         max_xp=100,
         ai_requirements="Requirements",
-        published_at=datetime.now(
-            timezone.utc
-        ),
+        published_at=datetime.now(timezone.utc),
     )
 
     db_session.add(project)
@@ -218,23 +188,11 @@ async def test_project_with_unpublished_hint_is_available(
     db_session.add(hint)
     await db_session.flush()
 
-    repository = ProjectRepository(
-        db_session
-    )
+    repository = ProjectRepository(db_session)
 
-    projects = (
-        await repository
-        .get_available_for_hint_by_course(
-            course.id
-        )
-    )
+    projects = await repository.get_available_for_hint_by_course(course.id)
 
-    assert [
-        item.id
-        for item in projects
-    ] == [
-        project.id
-    ]
+    assert [item.id for item in projects] == [project.id]
 
 
 @pytest.mark.asyncio
@@ -272,16 +230,9 @@ async def test_project_with_only_published_hints_is_hidden(
     db_session.add(hint)
     await db_session.flush()
 
-    repository = ProjectRepository(
-        db_session
-    )
+    repository = ProjectRepository(db_session)
 
-    projects = (
-        await repository
-        .get_available_for_hint_by_course(
-            course.id
-        )
-    )
+    projects = await repository.get_available_for_hint_by_course(course.id)
 
     assert projects == []
 
@@ -333,23 +284,11 @@ async def test_only_unpublished_hints_are_returned(
 
     await db_session.flush()
 
-    repository = HintRepository(
-        db_session
-    )
+    repository = HintRepository(db_session)
 
-    hints = (
-        await repository
-        .get_unpublished_by_project(
-            project.id
-        )
-    )
+    hints = await repository.get_unpublished_by_project(project.id)
 
-    assert [
-        hint.id
-        for hint in hints
-    ] == [
-        unpublished.id
-    ]
+    assert [hint.id for hint in hints] == [unpublished.id]
 
 
 @pytest.mark.asyncio
@@ -376,13 +315,9 @@ async def test_project_next_number_and_default_xp(
     db_session.add(existing_project)
     await db_session.flush()
 
-    repository = ProjectRepository(
-        db_session
-    )
+    repository = ProjectRepository(db_session)
 
-    number = await repository.get_next_number(
-        course.id
-    )
+    number = await repository.get_next_number(course.id)
 
     assert number == 4
 
@@ -397,9 +332,7 @@ async def test_project_next_number_and_default_xp(
 
     assert project.number == 4
     assert project.title == "New Project"
-    assert project.ai_requirements == (
-        "New requirements"
-    )
+    assert project.ai_requirements == ("New requirements")
     assert project.max_xp == 100
     assert project.published_at is None
     assert project.telegram_message_id is None
@@ -419,13 +352,9 @@ async def test_first_project_number_is_one(
     db_session.add(course)
     await db_session.flush()
 
-    repository = ProjectRepository(
-        db_session
-    )
+    repository = ProjectRepository(db_session)
 
-    number = await repository.get_next_number(
-        course.id
-    )
+    number = await repository.get_next_number(course.id)
 
     assert number == 1
 
@@ -454,13 +383,9 @@ async def test_hint_next_number_and_xp_values(
     db_session.add(project)
     await db_session.flush()
 
-    repository = HintRepository(
-        db_session
-    )
+    repository = HintRepository(db_session)
 
-    first_number = await repository.get_next_number(
-        project.id
-    )
+    first_number = await repository.get_next_number(project.id)
 
     assert first_number == 1
 
@@ -477,9 +402,7 @@ async def test_hint_next_number_and_xp_values(
     assert first_hint.published_at is None
     assert first_hint.telegram_message_id is None
 
-    second_number = await repository.get_next_number(
-        project.id
-    )
+    second_number = await repository.get_next_number(project.id)
 
     assert second_number == 2
 
@@ -532,23 +455,11 @@ async def test_next_numbers_are_scoped_to_parent(
     db_session.add(project)
     await db_session.flush()
 
-    project_repository = ProjectRepository(
-        db_session
-    )
+    project_repository = ProjectRepository(db_session)
 
-    assert (
-        await project_repository.get_next_number(
-            first_course.id
-        )
-        == 6
-    )
+    assert await project_repository.get_next_number(first_course.id) == 6
 
-    assert (
-        await project_repository.get_next_number(
-            second_course.id
-        )
-        == 1
-    )
+    assert await project_repository.get_next_number(second_course.id) == 1
 
 
 @pytest.mark.asyncio
@@ -583,21 +494,15 @@ async def test_create_project_service():
     assert second.title == "Second Project"
 
     async with async_session_factory() as session:
-        repository = ProjectRepository(
-            session
-        )
+        repository = ProjectRepository(session)
 
-        project = await repository.get_by_id(
-            first.id
-        )
+        project = await repository.get_by_id(first.id)
 
         assert project is not None
         assert project.course_id == course.id
         assert project.number == 1
         assert project.title == "First Project"
-        assert project.ai_requirements == (
-            "First requirements"
-        )
+        assert project.ai_requirements == ("First requirements")
         assert project.max_xp == 100
         assert project.published_at is None
         assert project.telegram_message_id is None
@@ -651,9 +556,7 @@ async def test_create_hint_assigns_number_and_xp():
         ai_requirements="Requirements",
     )
 
-    await mark_project_published(
-        project.id
-    )
+    await mark_project_published(project.id)
 
     first = await create_hint(
         course_slug="service_hint_creation",
@@ -689,34 +592,21 @@ async def test_create_hint_assigns_number_and_xp():
         )
 
     async with async_session_factory() as session:
-        repository = HintRepository(
-            session
-        )
+        repository = HintRepository(session)
 
-        hints = await repository.get_by_project(
-            project.id
-        )
+        hints = await repository.get_by_project(project.id)
 
         assert len(hints) == 3
 
-        assert [
-            hint.xp_after_publish
-            for hint in hints
-        ] == [
+        assert [hint.xp_after_publish for hint in hints] == [
             80,
             60,
             40,
         ]
 
-        assert all(
-            hint.published_at is None
-            for hint in hints
-        )
+        assert all(hint.published_at is None for hint in hints)
 
-        assert all(
-            hint.telegram_message_id is None
-            for hint in hints
-        )
+        assert all(hint.telegram_message_id is None for hint in hints)
 
 
 @pytest.mark.asyncio
@@ -817,9 +707,7 @@ async def test_concurrent_hint_creation_gets_unique_numbers():
         ai_requirements="Requirements",
     )
 
-    await mark_project_published(
-        project.id
-    )
+    await mark_project_published(project.id)
 
     first, second = await asyncio.gather(
         create_hint(
@@ -880,9 +768,7 @@ async def test_project_is_not_created_before_confirmation(
             "course_slug": "python_start",
             "post_type": "project",
         },
-        current_state=(
-            AdminScheduleStates.choosing_project
-        ),
+        current_state=(AdminScheduleStates.choosing_project),
     )
 
     callback = SimpleNamespace(
@@ -893,63 +779,40 @@ async def test_project_is_not_created_before_confirmation(
         answer=AsyncMock(),
     )
 
-    await (
-        admin_post_creation
-        .admin_create_project_start_handler(
-            callback,
-            state,
-        )
+    await admin_post_creation.admin_create_project_start_handler(
+        callback,
+        state,
     )
 
     title_message = SimpleNamespace(
-        from_user=SimpleNamespace(
-            id=1
-        ),
+        from_user=SimpleNamespace(id=1),
         text="  Новый Project  ",
         answer=AsyncMock(),
     )
 
-    await (
-        admin_post_creation
-        .admin_create_project_title_handler(
-            title_message,
-            state,
-        )
+    await admin_post_creation.admin_create_project_title_handler(
+        title_message,
+        state,
     )
 
     requirements_message = SimpleNamespace(
-        from_user=SimpleNamespace(
-            id=1
-        ),
+        from_user=SimpleNamespace(id=1),
         text="  Выполнить все обязательные условия  ",
         answer=AsyncMock(),
     )
 
-    await (
-        admin_post_creation
-        .admin_create_project_requirements_handler(
-            requirements_message,
-            state,
-        )
+    await admin_post_creation.admin_create_project_requirements_handler(
+        requirements_message,
+        state,
     )
 
     create_project_mock.assert_not_awaited()
 
-    assert state.current_state == (
-        AdminScheduleStates
-        .confirming_project_creation
-    )
+    assert state.current_state == (AdminScheduleStates.confirming_project_creation)
 
-    assert state.data["project_title"] == (
-        "Новый Project"
-    )
+    assert state.data["project_title"] == ("Новый Project")
 
-    assert (
-        state.data[
-            "project_ai_requirements"
-        ]
-        == "Выполнить все обязательные условия"
-    )
+    assert state.data["project_ai_requirements"] == "Выполнить все обязательные условия"
 
 
 @pytest.mark.asyncio
@@ -973,14 +836,9 @@ async def test_project_creation_cancel_returns_to_project_list(
             "course_slug": "python_start",
             "post_type": "project",
             "project_title": "Temporary",
-            "project_ai_requirements": (
-                "Temporary requirements"
-            ),
+            "project_ai_requirements": ("Temporary requirements"),
         },
-        current_state=(
-            AdminScheduleStates
-            .confirming_project_creation
-        ),
+        current_state=(AdminScheduleStates.confirming_project_creation),
     )
 
     callback = SimpleNamespace(
@@ -991,17 +849,12 @@ async def test_project_creation_cancel_returns_to_project_list(
         answer=AsyncMock(),
     )
 
-    await (
-        admin_post_creation
-        .admin_create_project_cancel_handler(
-            callback,
-            state,
-        )
+    await admin_post_creation.admin_create_project_cancel_handler(
+        callback,
+        state,
     )
 
-    assert state.current_state == (
-        AdminScheduleStates.choosing_project
-    )
+    assert state.current_state == (AdminScheduleStates.choosing_project)
 
     assert state.data == {
         "course_slug": "python_start",
@@ -1035,9 +888,7 @@ async def test_hint_is_not_created_before_confirmation(
             "post_type": "hint",
             "project_id": 123,
         },
-        current_state=(
-            AdminScheduleStates.choosing_hint
-        ),
+        current_state=(AdminScheduleStates.choosing_hint),
     )
 
     callback = SimpleNamespace(
@@ -1048,24 +899,16 @@ async def test_hint_is_not_created_before_confirmation(
         answer=AsyncMock(),
     )
 
-    await (
-        admin_post_creation
-        .admin_create_hint_start_handler(
-            callback,
-            state,
-        )
+    await admin_post_creation.admin_create_hint_start_handler(
+        callback,
+        state,
     )
 
     create_hint_mock.assert_not_awaited()
 
-    assert state.current_state == (
-        AdminScheduleStates
-        .confirming_hint_creation
-    )
+    assert state.current_state == (AdminScheduleStates.confirming_hint_creation)
 
-    assert state.data["course_slug"] == (
-        "python_start"
-    )
+    assert state.data["course_slug"] == ("python_start")
 
     assert state.data["project_id"] == 123
 
@@ -1080,9 +923,7 @@ async def test_hint_creation_cancel_returns_to_same_project(
         AsyncMock(return_value=True),
     )
 
-    get_hints_mock = AsyncMock(
-        return_value=[]
-    )
+    get_hints_mock = AsyncMock(return_value=[])
 
     monkeypatch.setattr(
         admin_post_creation,
@@ -1096,10 +937,7 @@ async def test_hint_creation_cancel_returns_to_same_project(
             "post_type": "hint",
             "project_id": 123,
         },
-        current_state=(
-            AdminScheduleStates
-            .confirming_hint_creation
-        ),
+        current_state=(AdminScheduleStates.confirming_hint_creation),
     )
 
     callback = SimpleNamespace(
@@ -1110,21 +948,14 @@ async def test_hint_creation_cancel_returns_to_same_project(
         answer=AsyncMock(),
     )
 
-    await (
-        admin_post_creation
-        .admin_create_hint_cancel_handler(
-            callback,
-            state,
-        )
+    await admin_post_creation.admin_create_hint_cancel_handler(
+        callback,
+        state,
     )
 
-    get_hints_mock.assert_awaited_once_with(
-        123
-    )
+    get_hints_mock.assert_awaited_once_with(123)
 
-    assert state.current_state == (
-        AdminScheduleStates.choosing_hint
-    )
+    assert state.current_state == (AdminScheduleStates.choosing_hint)
 
     assert state.data == {
         "course_slug": "python_start",
@@ -1144,9 +975,7 @@ async def test_project_confirmation_creates_once_and_returns_to_list(
         title="New Project",
     )
 
-    create_project_mock = AsyncMock(
-        return_value=created_project
-    )
+    create_project_mock = AsyncMock(return_value=created_project)
 
     monkeypatch.setattr(
         admin_post_creation,
@@ -1160,9 +989,7 @@ async def test_project_confirmation_creates_once_and_returns_to_list(
         AsyncMock(return_value=True),
     )
 
-    get_projects_mock = AsyncMock(
-        return_value=[]
-    )
+    get_projects_mock = AsyncMock(return_value=[])
 
     monkeypatch.setattr(
         admin_post_creation,
@@ -1175,14 +1002,9 @@ async def test_project_confirmation_creates_once_and_returns_to_list(
             "course_slug": "python_start",
             "post_type": "project",
             "project_title": "New Project",
-            "project_ai_requirements": (
-                "Required criteria"
-            ),
+            "project_ai_requirements": ("Required criteria"),
         },
-        current_state=(
-            AdminScheduleStates
-            .confirming_project_creation
-        ),
+        current_state=(AdminScheduleStates.confirming_project_creation),
     )
 
     callback = SimpleNamespace(
@@ -1193,12 +1015,9 @@ async def test_project_confirmation_creates_once_and_returns_to_list(
         answer=AsyncMock(),
     )
 
-    await (
-        admin_post_creation
-        .admin_create_project_confirm_handler(
-            callback,
-            state,
-        )
+    await admin_post_creation.admin_create_project_confirm_handler(
+        callback,
+        state,
     )
 
     create_project_mock.assert_awaited_once_with(
@@ -1207,13 +1026,9 @@ async def test_project_confirmation_creates_once_and_returns_to_list(
         ai_requirements="Required criteria",
     )
 
-    get_projects_mock.assert_awaited_once_with(
-        "python_start"
-    )
+    get_projects_mock.assert_awaited_once_with("python_start")
 
-    assert state.current_state == (
-        AdminScheduleStates.choosing_project
-    )
+    assert state.current_state == (AdminScheduleStates.choosing_project)
 
     assert state.data == {
         "course_slug": "python_start",
@@ -1222,9 +1037,7 @@ async def test_project_confirmation_creates_once_and_returns_to_list(
         "hint_id": None,
     }
 
-    callback.answer.assert_awaited_once_with(
-        "✅ Project 4 создан."
-    )
+    callback.answer.assert_awaited_once_with("✅ Project 4 создан.")
 
 
 @pytest.mark.asyncio
@@ -1238,9 +1051,7 @@ async def test_hint_confirmation_creates_once_and_returns_to_same_project(
         xp_after_publish=60,
     )
 
-    create_hint_mock = AsyncMock(
-        return_value=created_hint
-    )
+    create_hint_mock = AsyncMock(return_value=created_hint)
 
     monkeypatch.setattr(
         admin_post_creation,
@@ -1254,9 +1065,7 @@ async def test_hint_confirmation_creates_once_and_returns_to_same_project(
         AsyncMock(return_value=True),
     )
 
-    get_hints_mock = AsyncMock(
-        return_value=[]
-    )
+    get_hints_mock = AsyncMock(return_value=[])
 
     monkeypatch.setattr(
         admin_post_creation,
@@ -1270,10 +1079,7 @@ async def test_hint_confirmation_creates_once_and_returns_to_same_project(
             "post_type": "hint",
             "project_id": 123,
         },
-        current_state=(
-            AdminScheduleStates
-            .confirming_hint_creation
-        ),
+        current_state=(AdminScheduleStates.confirming_hint_creation),
     )
 
     callback = SimpleNamespace(
@@ -1284,12 +1090,9 @@ async def test_hint_confirmation_creates_once_and_returns_to_same_project(
         answer=AsyncMock(),
     )
 
-    await (
-        admin_post_creation
-        .admin_create_hint_confirm_handler(
-            callback,
-            state,
-        )
+    await admin_post_creation.admin_create_hint_confirm_handler(
+        callback,
+        state,
     )
 
     create_hint_mock.assert_awaited_once_with(
@@ -1297,13 +1100,9 @@ async def test_hint_confirmation_creates_once_and_returns_to_same_project(
         project_id=123,
     )
 
-    get_hints_mock.assert_awaited_once_with(
-        123
-    )
+    get_hints_mock.assert_awaited_once_with(123)
 
-    assert state.current_state == (
-        AdminScheduleStates.choosing_hint
-    )
+    assert state.current_state == (AdminScheduleStates.choosing_hint)
 
     assert state.data == {
         "course_slug": "python_start",
@@ -1313,6 +1112,5 @@ async def test_hint_confirmation_creates_once_and_returns_to_same_project(
     }
 
     callback.answer.assert_awaited_once_with(
-        "✅ Hint 2 создана. "
-        "XP после публикации: 60."
+        "✅ Hint 2 создана. XP после публикации: 60."
     )

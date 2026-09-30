@@ -29,10 +29,7 @@ def test_all_requirements_passed() -> None:
         recommendations=[],
     )
 
-    assert (
-        resolve_review_verdict(result)
-        == "passed"
-    )
+    assert resolve_review_verdict(result) == "passed"
 
 
 def test_failed_requirement_fails() -> None:
@@ -45,16 +42,11 @@ def test_failed_requirement_fails() -> None:
         ],
         summary="Есть ошибка.",
         strengths=[],
-        problems=[
-            "Требование не выполнено."
-        ],
+        problems=["Требование не выполнено."],
         recommendations=[],
     )
 
-    assert (
-        resolve_review_verdict(result)
-        == "failed"
-    )
+    assert resolve_review_verdict(result) == "failed"
 
 
 def test_uncertain_requirement_requires_review() -> None:
@@ -71,10 +63,7 @@ def test_uncertain_requirement_requires_review() -> None:
         recommendations=[],
     )
 
-    assert (
-        resolve_review_verdict(result)
-        == "review"
-    )
+    assert resolve_review_verdict(result) == "review"
 
 
 def test_incomplete_requirements_require_review() -> None:
@@ -90,10 +79,7 @@ def test_incomplete_requirements_require_review() -> None:
         recommendations=[],
     )
 
-    assert (
-        resolve_review_verdict(result)
-        == "review"
-    )
+    assert resolve_review_verdict(result) == "review"
 
 
 def test_contradictory_ai_result_requires_review() -> None:
@@ -105,16 +91,11 @@ def test_contradictory_ai_result_requires_review() -> None:
         ],
         summary="Противоречивый результат.",
         strengths=[],
-        problems=[
-            "Есть невыполненное требование."
-        ],
+        problems=["Есть невыполненное требование."],
         recommendations=[],
     )
 
-    assert (
-        resolve_review_verdict(result)
-        == "review"
-    )
+    assert resolve_review_verdict(result) == "review"
 
 
 def test_passed_with_problems_requires_review() -> None:
@@ -126,13 +107,8 @@ def test_passed_with_problems_requires_review() -> None:
         ],
         summary="Есть противоречие.",
         strengths=[],
-        problems=[
-            "Почему-то указана ошибка."
-        ],
+        problems=["Почему-то указана ошибка."],
         recommendations=[],
     )
 
-    assert (
-        resolve_review_verdict(result)
-        == "review"
-    )
+    assert resolve_review_verdict(result) == "review"

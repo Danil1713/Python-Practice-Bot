@@ -76,9 +76,8 @@ def get_admin_menu_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows
-    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
 
 def get_schedule_keyboard(
     course_slug: str,
@@ -111,11 +110,7 @@ def get_schedule_keyboard(
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=(
-                        f"{status_icon} "
-                        f"{type_icon} "
-                        f"#{post.id}"
-                    ),
+                    text=(f"{status_icon} {type_icon} #{post.id}"),
                     callback_data=build_callback_data(
                         "admin",
                         "post",
@@ -153,9 +148,7 @@ def get_schedule_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows
-    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def get_scheduled_post_keyboard(
@@ -229,9 +222,8 @@ def get_scheduled_post_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows
-    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
 
 def get_admin_input_cancel_keyboard(
     post_id: int,
@@ -252,6 +244,7 @@ def get_admin_input_cancel_keyboard(
             ]
         ]
     )
+
 
 def get_post_type_keyboard(
     course_slug: str,
@@ -307,6 +300,7 @@ def get_post_type_keyboard(
         ]
     )
 
+
 def get_project_selection_keyboard(
     course_slug: str,
     projects: list,
@@ -318,10 +312,7 @@ def get_project_selection_keyboard(
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=(
-                        f"Project {project.number} — "
-                        f"{project.title}"
-                    ),
+                    text=(f"Project {project.number} — {project.title}"),
                     callback_data=build_callback_data(
                         "admin",
                         "add",
@@ -361,9 +352,8 @@ def get_project_selection_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows
-    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
 
 def get_hint_selection_keyboard(
     course_slug: str,
@@ -415,9 +405,8 @@ def get_hint_selection_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows
-    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
 
 def get_schedule_confirm_keyboard(
     course_slug: str,
@@ -470,14 +459,9 @@ def get_subscription_users_keyboard(
 
     for user in users:
         if user.username:
-            label = (
-                f"@{user.username} "
-                f"({user.telegram_id})"
-            )
+            label = f"@{user.username} ({user.telegram_id})"
         else:
-            label = str(
-                user.telegram_id
-            )
+            label = str(user.telegram_id)
 
         rows.append(
             [
@@ -506,9 +490,8 @@ def get_subscription_users_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows
-    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
 
 def get_subscription_confirm_keyboard(
     show_confirm: bool = True,
@@ -520,9 +503,7 @@ def get_subscription_confirm_keyboard(
             [
                 InlineKeyboardButton(
                     text="✅ Подтвердить",
-                    callback_data=(
-                        "admin:sub:confirm"
-                    ),
+                    callback_data=("admin:sub:confirm"),
                 )
             ]
         )
@@ -531,20 +512,15 @@ def get_subscription_confirm_keyboard(
         [
             InlineKeyboardButton(
                 text="❌ Отмена",
-                callback_data=(
-                    "admin:sub:cancel"
-                ),
+                callback_data=("admin:sub:cancel"),
             )
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows
-    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def get_project_creation_input_keyboard(
-) -> InlineKeyboardMarkup:
+def get_project_creation_input_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -562,8 +538,7 @@ def get_project_creation_input_keyboard(
     )
 
 
-def get_project_creation_confirm_keyboard(
-) -> InlineKeyboardMarkup:
+def get_project_creation_confirm_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -592,8 +567,7 @@ def get_project_creation_confirm_keyboard(
     )
 
 
-def get_hint_creation_confirm_keyboard(
-) -> InlineKeyboardMarkup:
+def get_hint_creation_confirm_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -630,21 +604,14 @@ def get_review_payments_keyboard(
 
     for payment in payments:
         if payment.username:
-            user_label = (
-                f"@{payment.username}"
-            )
+            user_label = f"@{payment.username}"
         else:
-            user_label = str(
-                payment.telegram_user_id
-            )
+            user_label = str(payment.telegram_user_id)
 
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=(
-                        f"⚠️ #{payment.id} — "
-                        f"{user_label}"
-                    ),
+                    text=(f"⚠️ #{payment.id} — {user_label}"),
                     callback_data=build_callback_data(
                         "admin",
                         "payreview-item",
@@ -668,9 +635,7 @@ def get_review_payments_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows
-    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def get_review_payment_keyboard(

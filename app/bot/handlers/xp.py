@@ -19,9 +19,7 @@ from app.services.xp_service import (
 router = Router()
 
 
-@router.callback_query(
-    F.data.startswith("menu:xp:")
-)
+@router.callback_query(F.data.startswith("menu:xp:"))
 async def xp_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -38,8 +36,8 @@ async def xp_handler(
         return
 
     if not await check_current_course(
-            callback,
-            course_slug,
+        callback,
+        course_slug,
     ):
         return
 
@@ -55,13 +53,10 @@ async def xp_handler(
         )
         return
 
-    course_title = escape(
-        view.course_title
-    )
+    course_title = escape(view.course_title)
 
     lines = [
-        f"<b>⭐ XP — "
-        f"{course_title}</b>",
+        f"<b>⭐ XP — {course_title}</b>",
         "",
         f"Всего XP: <b>{view.total_xp}</b>",
     ]
@@ -76,21 +71,13 @@ async def xp_handler(
 
         for item in view.history:
             if item.project_number is not None:
-                title = escape(
-                    item.project_title or ""
-                )
+                title = escape(item.project_title or "")
 
                 lines.append(
-                    f"+{item.amount} XP — "
-                    f"Project "
-                    f"{item.project_number} "
-                    f"{title}"
+                    f"+{item.amount} XP — Project {item.project_number} {title}"
                 )
             else:
-                lines.append(
-                    f"+{item.amount} XP — "
-                    f"{escape(item.reason)}"
-                )
+                lines.append(f"+{item.amount} XP — {escape(item.reason)}")
 
     else:
         lines.extend(
@@ -102,9 +89,7 @@ async def xp_handler(
 
     await callback.message.edit_text(
         text="\n".join(lines),
-        reply_markup=get_xp_keyboard(
-            view.course_slug
-        ),
+        reply_markup=get_xp_keyboard(view.course_slug),
     )
 
     await callback.answer()

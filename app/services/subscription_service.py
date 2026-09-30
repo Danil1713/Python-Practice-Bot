@@ -32,12 +32,14 @@ class SubscriptionView:
     starts_at: datetime | None
     ends_at: datetime | None
 
+
 @dataclass(frozen=True)
 class SubscriptionAuditContext:
     actor_telegram_id: int
     source: str
     reason: str
     idempotency_key: str
+
 
 async def has_active_subscription(
     telegram_user_id: int,
@@ -46,9 +48,7 @@ async def has_active_subscription(
     async with async_session_factory() as session:
         course_repository = CourseRepository(session)
 
-        course = await course_repository.get_by_slug(
-            course_slug
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
             return False
@@ -58,26 +58,20 @@ async def has_active_subscription(
 
         user_repository = UserRepository(session)
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_user_id
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         if user is None:
             return False
 
-        subscription_repository = (
-            SubscriptionRepository(session)
-        )
+        subscription_repository = SubscriptionRepository(session)
 
-        subscription = (
-            await subscription_repository
-            .get_active_subscription(
-                user_id=user.id,
-                course_id=course.id,
-            )
+        subscription = await subscription_repository.get_active_subscription(
+            user_id=user.id,
+            course_id=course.id,
         )
 
         return subscription is not None
+
 
 async def get_subscription_view(
     telegram_user_id: int,
@@ -86,20 +80,14 @@ async def get_subscription_view(
     async with async_session_factory() as session:
         user_repository = UserRepository(session)
         course_repository = CourseRepository(session)
-        subscription_repository = (
-            SubscriptionRepository(session)
-        )
+        subscription_repository = SubscriptionRepository(session)
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_user_id
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         if user is None:
             return None
 
-        course = await course_repository.get_by_slug(
-            course_slug
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
             return None
@@ -109,21 +97,15 @@ async def get_subscription_view(
                 course_slug=course.slug,
                 course_title=course.title,
                 requires_subscription=False,
-                has_channel=(
-                        course.telegram_channel_id
-                        is not None
-                ),
+                has_channel=(course.telegram_channel_id is not None),
                 status="free",
                 starts_at=None,
                 ends_at=None,
             )
 
-        subscription = (
-            await subscription_repository
-            .get_by_user_and_course(
-                user_id=user.id,
-                course_id=course.id,
-            )
+        subscription = await subscription_repository.get_by_user_and_course(
+            user_id=user.id,
+            course_id=course.id,
         )
 
         if subscription is None:
@@ -131,10 +113,7 @@ async def get_subscription_view(
                 course_slug=course.slug,
                 course_title=course.title,
                 requires_subscription=True,
-                has_channel=(
-                        course.telegram_channel_id
-                        is not None
-                ),
+                has_channel=(course.telegram_channel_id is not None),
                 status="inactive",
                 starts_at=None,
                 ends_at=None,
@@ -155,10 +134,7 @@ async def get_subscription_view(
             course_slug=course.slug,
             course_title=course.title,
             requires_subscription=True,
-            has_channel=(
-                    course.telegram_channel_id
-                    is not None
-            ),
+            has_channel=(course.telegram_channel_id is not None),
             status=status,
             starts_at=subscription.starts_at,
             ends_at=subscription.ends_at,
@@ -174,23 +150,13 @@ async def activate_or_extend_subscription_in_session(
     audit: SubscriptionAuditContext | None = None,
 ):
     if days <= 0:
-        raise ValueError(
-            "Количество дней должно быть больше 0."
-        )
+        raise ValueError("Количество дней должно быть больше 0.")
 
-    now = datetime.now(
-        timezone.utc
-    )
+    now = datetime.now(timezone.utc)
 
-    repository = SubscriptionRepository(
-        session
-    )
+    repository = SubscriptionRepository(session)
 
-    event_repository = (
-        SubscriptionEventRepository(
-            session
-        )
-    )
+    event_repository = SubscriptionEventRepository(session)
 
     await repository.lock_subscription(
         user_id=user_id,
@@ -198,47 +164,30 @@ async def activate_or_extend_subscription_in_session(
     )
 
     if audit is not None:
-        existing_event = (
-            await event_repository
-            .get_by_idempotency_key(
-                audit.idempotency_key
-            )
+        existing_event = await event_repository.get_by_idempotency_key(
+            audit.idempotency_key
         )
 
         if existing_event is not None:
             if (
-                existing_event.user_id
-                != user_id
-                or existing_event.course_id
-                != course_id
+                existing_event.user_id != user_id
+                or existing_event.course_id != course_id
             ):
-                raise RuntimeError(
-                    "Idempotency key используется "
-                    "для другой подписки."
-                )
+                raise RuntimeError("Idempotency key используется для другой подписки.")
 
-            subscription = (
-                await repository
-                .get_by_user_and_course(
-                    user_id=user_id,
-                    course_id=course_id,
-                )
+            subscription = await repository.get_by_user_and_course(
+                user_id=user_id,
+                course_id=course_id,
             )
 
             if subscription is None:
-                raise RuntimeError(
-                    "Audit event существует, "
-                    "но подписка не найдена."
-                )
+                raise RuntimeError("Audit event существует, но подписка не найдена.")
 
             return subscription
 
-    subscription = (
-        await repository
-        .get_by_user_and_course(
-            user_id=user_id,
-            course_id=course_id,
-        )
+    subscription = await repository.get_by_user_and_course(
+        user_id=user_id,
+        course_id=course_id,
     )
 
     if subscription is None:
@@ -251,40 +200,22 @@ async def activate_or_extend_subscription_in_session(
             course_id=course_id,
             status="active",
             starts_at=now,
-            ends_at=(
-                now
-                + timedelta(days=days)
-            ),
+            ends_at=(now + timedelta(days=days)),
         )
 
-        await repository.save(
-            subscription
-        )
+        await repository.save(subscription)
 
     else:
         old_status = subscription.status
-        old_starts_at = (
-            subscription.starts_at
-        )
-        old_ends_at = (
-            subscription.ends_at
-        )
+        old_starts_at = subscription.starts_at
+        old_ends_at = subscription.ends_at
 
-        if (
-            subscription.status == "active"
-            and subscription.ends_at > now
-        ):
-            subscription.ends_at = (
-                subscription.ends_at
-                + timedelta(days=days)
-            )
+        if subscription.status == "active" and subscription.ends_at > now:
+            subscription.ends_at = subscription.ends_at + timedelta(days=days)
 
         else:
             subscription.starts_at = now
-            subscription.ends_at = (
-                now
-                + timedelta(days=days)
-            )
+            subscription.ends_at = now + timedelta(days=days)
 
         subscription.status = "active"
 
@@ -295,9 +226,7 @@ async def activate_or_extend_subscription_in_session(
             subscription_id=subscription.id,
             user_id=user_id,
             course_id=course_id,
-            actor_telegram_id=(
-                audit.actor_telegram_id
-            ),
+            actor_telegram_id=(audit.actor_telegram_id),
             event_type="activate_or_extend",
             source=audit.source,
             reason=audit.reason,
@@ -305,16 +234,10 @@ async def activate_or_extend_subscription_in_session(
             old_status=old_status,
             new_status=subscription.status,
             old_starts_at=old_starts_at,
-            new_starts_at=(
-                subscription.starts_at
-            ),
+            new_starts_at=(subscription.starts_at),
             old_ends_at=old_ends_at,
-            new_ends_at=(
-                subscription.ends_at
-            ),
-            idempotency_key=(
-                audit.idempotency_key
-            ),
+            new_ends_at=(subscription.ends_at),
+            idempotency_key=(audit.idempotency_key),
         )
 
     return subscription

@@ -41,48 +41,28 @@ async def get_course_progress(
     course_slug: str,
 ) -> CourseProgressView | None:
     async with async_session_factory() as session:
-        user_repository = UserRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
-        project_repository = ProjectRepository(
-            session
-        )
-        user_project_repository = UserProjectRepository(
-            session
-        )
+        user_repository = UserRepository(session)
+        course_repository = CourseRepository(session)
+        project_repository = ProjectRepository(session)
+        user_project_repository = UserProjectRepository(session)
 
-        user = await user_repository.get_by_telegram_id(
-            telegram_user_id
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         if user is None:
             return None
 
-        course = await course_repository.get_by_slug(
-            course_slug
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
             return None
 
-        projects = await project_repository.get_by_course(
-            course.id
-        )
+        projects = await project_repository.get_by_course(course.id)
 
-        project_ids = [
-            project.id
-            for project in projects
-        ]
+        project_ids = [project.id for project in projects]
 
-        completed_ids = (
-            await user_project_repository
-            .get_completed_project_ids(
-                user_id=user.id,
-                project_ids=project_ids,
-            )
+        completed_ids = await user_project_repository.get_completed_project_ids(
+            user_id=user.id,
+            project_ids=project_ids,
         )
 
         completed_count = len(completed_ids)
@@ -91,11 +71,7 @@ async def get_course_progress(
         if total_count == 0:
             percent = 0
         else:
-            percent = round(
-                completed_count
-                / total_count
-                * 100
-            )
+            percent = round(completed_count / total_count * 100)
 
         items: list[ProgressProjectItem] = []
 

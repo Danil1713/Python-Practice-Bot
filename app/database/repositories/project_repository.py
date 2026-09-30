@@ -21,19 +21,13 @@ class ProjectRepository:
     ) -> list[Project]:
         statement = (
             select(Project)
-            .where(
-                Project.course_id == course_id
-            )
+            .where(Project.course_id == course_id)
             .order_by(Project.number)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def get_unpublished_by_course(
         self,
@@ -48,17 +42,13 @@ class ProjectRepository:
             .order_by(Project.number)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def get_available_for_hint_by_course(
-            self,
-            course_id: int,
+        self,
+        course_id: int,
     ) -> list[Project]:
         statement = (
             select(Project)
@@ -69,25 +59,17 @@ class ProjectRepository:
             .order_by(Project.number)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def get_by_id(
         self,
         project_id: int,
     ) -> Project | None:
-        statement = select(Project).where(
-            Project.id == project_id
-        )
+        statement = select(Project).where(Project.id == project_id)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
@@ -102,9 +84,7 @@ class ProjectRepository:
             )
         )
 
-        await self.session.execute(
-            statement
-        )
+        await self.session.execute(statement)
 
     async def get_next_number(
         self,
@@ -115,13 +95,9 @@ class ProjectRepository:
                 func.max(Project.number),
                 0,
             )
-        ).where(
-            Project.course_id == course_id
-        )
+        ).where(Project.course_id == course_id)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         current_max = result.scalar_one()
 
@@ -154,8 +130,6 @@ class ProjectRepository:
         telegram_message_id: int,
     ) -> None:
         project.published_at = published_at
-        project.telegram_message_id = (
-            telegram_message_id
-        )
+        project.telegram_message_id = telegram_message_id
 
         await self.session.flush()

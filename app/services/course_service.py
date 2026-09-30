@@ -13,9 +13,7 @@ async def get_course_by_slug(
     async with async_session_factory() as session:
         repository = CourseRepository(session)
 
-        return await repository.get_by_slug(
-            course_slug
-        )
+        return await repository.get_by_slug(course_slug)
 
 
 async def get_active_courses() -> list[Course]:

@@ -45,6 +45,7 @@ from app.utils.datetime_utils import (
 
 router = Router()
 
+
 async def get_admin_post_for_course(
     *,
     callback: CallbackQuery,
@@ -52,9 +53,7 @@ async def get_admin_post_for_course(
     course_slug: str,
 ) -> ScheduledPostDetail | None:
     try:
-        post = await get_scheduled_post_detail(
-            post_id
-        )
+        post = await get_scheduled_post_detail(post_id)
 
     except ScheduledPostNotFound:
         await callback.answer(
@@ -72,17 +71,15 @@ async def get_admin_post_for_course(
 
     if post.course_slug != course_slug:
         await callback.answer(
-            "Публикация относится "
-            "к другому курсу.",
+            "Публикация относится к другому курсу.",
             show_alert=True,
         )
         return None
 
     return post
 
-@router.callback_query(
-    F.data.startswith("admin:schedule:")
-)
+
+@router.callback_query(F.data.startswith("admin:schedule:"))
 async def admin_schedule_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -101,9 +98,7 @@ async def admin_schedule_handler(
         )
         return
 
-    posts = await get_course_schedule(
-        course_slug
-    )
+    posts = await get_course_schedule(course_slug)
 
     lines = [
         "📅 <b>Расписание</b>",
@@ -111,29 +106,15 @@ async def admin_schedule_handler(
     ]
 
     if not posts:
-        lines.append(
-            "Запланированных публикаций нет."
-        )
+        lines.append("Запланированных публикаций нет.")
 
     else:
         for post in posts:
-            icon = (
-                "🕒"
-                if post.status == "scheduled"
-                else "⚠️"
-            )
+            icon = "🕒" if post.status == "scheduled" else "⚠️"
 
-            lines.append(
-                f"{icon} #{post.id} — "
-                f"{post.post_type}"
-            )
+            lines.append(f"{icon} #{post.id} — {post.post_type}")
 
-            lines.append(
-                "   "
-                + format_admin_datetime(
-                    post.scheduled_at
-                )
-            )
+            lines.append("   " + format_admin_datetime(post.scheduled_at))
 
     await callback.message.edit_text(
         text="\n".join(lines),
@@ -146,9 +127,7 @@ async def admin_schedule_handler(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith("admin:post:")
-)
+@router.callback_query(F.data.startswith("admin:post:"))
 async def admin_post_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -184,10 +163,7 @@ async def admin_post_handler(
     content_preview = post.content
 
     if len(content_preview) > 500:
-        content_preview = (
-            content_preview[:500]
-            + "..."
-        )
+        content_preview = content_preview[:500] + "..."
 
     text = (
         f"📝 <b>Публикация #{post.id}</b>\n\n"
@@ -201,10 +177,7 @@ async def admin_post_handler(
     )
 
     if post.error_message:
-        text += (
-            "\n\n⚠️ <b>Ошибка:</b>\n"
-            + escape(post.error_message[:500])
-        )
+        text += "\n\n⚠️ <b>Ошибка:</b>\n" + escape(post.error_message[:500])
 
     await callback.message.edit_text(
         text=text,
@@ -220,9 +193,7 @@ async def admin_post_handler(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith("admin:publish:")
-)
+@router.callback_query(F.data.startswith("admin:publish:"))
 async def admin_publish_now_handler(
     callback: CallbackQuery,
     bot: Bot,
@@ -285,15 +256,10 @@ async def admin_publish_now_handler(
         show_alert=True,
     )
 
-    posts = await get_course_schedule(
-        course_slug
-    )
+    posts = await get_course_schedule(course_slug)
 
     await callback.message.edit_text(
-        text=(
-            "📅 <b>Расписание</b>\n\n"
-            "Публикация успешно отправлена."
-        ),
+        text=("📅 <b>Расписание</b>\n\nПубликация успешно отправлена."),
         reply_markup=get_schedule_keyboard(
             course_slug,
             posts,
@@ -301,9 +267,7 @@ async def admin_publish_now_handler(
     )
 
 
-@router.callback_query(
-    F.data.startswith("admin:cancel:")
-)
+@router.callback_query(F.data.startswith("admin:cancel:"))
 async def admin_cancel_post_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -334,9 +298,7 @@ async def admin_cancel_post_handler(
         return
 
     try:
-        await cancel_scheduled_post(
-            post_id
-        )
+        await cancel_scheduled_post(post_id)
 
     except ScheduledPostNotFound:
         await callback.answer(
@@ -352,15 +314,10 @@ async def admin_cancel_post_handler(
         )
         return
 
-    posts = await get_course_schedule(
-        course_slug
-    )
+    posts = await get_course_schedule(course_slug)
 
     await callback.message.edit_text(
-        text=(
-            "📅 <b>Расписание</b>\n\n"
-            "❌ Публикация отменена."
-        ),
+        text=("📅 <b>Расписание</b>\n\n❌ Публикация отменена."),
         reply_markup=get_schedule_keyboard(
             course_slug,
             posts,
@@ -370,10 +327,7 @@ async def admin_cancel_post_handler(
     await callback.answer()
 
 
-
-@router.callback_query(
-    F.data.startswith("admin:reschedule:")
-)
+@router.callback_query(F.data.startswith("admin:reschedule:"))
 async def admin_reschedule_start_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -414,10 +368,7 @@ async def admin_reschedule_start_handler(
         )
         return
 
-    await state.set_state(
-        AdminScheduleStates
-        .waiting_for_reschedule_datetime
-    )
+    await state.set_state(AdminScheduleStates.waiting_for_reschedule_datetime)
 
     await state.update_data(
         post_id=post_id,
@@ -442,10 +393,7 @@ async def admin_reschedule_start_handler(
     await callback.answer()
 
 
-@router.message(
-    AdminScheduleStates
-    .waiting_for_reschedule_datetime
-)
+@router.message(AdminScheduleStates.waiting_for_reschedule_datetime)
 async def admin_reschedule_datetime_handler(
     message: Message,
     state: FSMContext,
@@ -459,16 +407,10 @@ async def admin_reschedule_datetime_handler(
     post_id = data.get("post_id")
     course_slug = data.get("course_slug")
 
-    if (
-        not isinstance(post_id, int)
-        or not isinstance(course_slug, str)
-    ):
+    if not isinstance(post_id, int) or not isinstance(course_slug, str):
         await state.clear()
 
-        await message.answer(
-            "Контекст переноса публикации "
-            "потерян."
-        )
+        await message.answer("Контекст переноса публикации потерян.")
         return
 
     value = (message.text or "").strip()
@@ -481,9 +423,7 @@ async def admin_reschedule_datetime_handler(
 
     except InvalidDateTimeFormat:
         await message.answer(
-            "❌ Неверный формат.\n\n"
-            "Используй:\n"
-            "<code>05.09.2026 18:30</code>",
+            "❌ Неверный формат.\n\nИспользуй:\n<code>05.09.2026 18:30</code>",
             reply_markup=(
                 get_admin_input_cancel_keyboard(
                     post_id=post_id,
@@ -535,16 +475,12 @@ async def admin_reschedule_datetime_handler(
         return
 
     try:
-        post = await get_scheduled_post_detail(
-            post_id
-        )
+        post = await get_scheduled_post_detail(post_id)
 
     except ScheduleError as error:
         await state.clear()
 
-        posts = await get_course_schedule(
-            course_slug
-        )
+        posts = await get_course_schedule(course_slug)
 
         await message.answer(
             text=f"❌ {error}",
@@ -558,10 +494,7 @@ async def admin_reschedule_datetime_handler(
     if post.course_slug != course_slug:
         await state.clear()
 
-        await message.answer(
-            "❌ Публикация относится "
-            "к другому курсу."
-        )
+        await message.answer("❌ Публикация относится к другому курсу.")
         return
 
     try:
@@ -576,9 +509,7 @@ async def admin_reschedule_datetime_handler(
     ) as error:
         await state.clear()
 
-        posts = await get_course_schedule(
-            course_slug
-        )
+        posts = await get_course_schedule(course_slug)
 
         await message.answer(
             text=f"❌ {error}",
@@ -603,17 +534,10 @@ async def admin_reschedule_datetime_handler(
 
     await state.clear()
 
-    posts = await get_course_schedule(
-        course_slug
-    )
+    posts = await get_course_schedule(course_slug)
 
     await message.answer(
-        text=(
-            "✅ <b>Публикация перенесена.</b>"
-            "\n\n"
-            f"Новое время: "
-            f"<b>{value}</b>"
-        ),
+        text=(f"✅ <b>Публикация перенесена.</b>\n\nНовое время: <b>{value}</b>"),
         reply_markup=get_schedule_keyboard(
             course_slug,
             posts,

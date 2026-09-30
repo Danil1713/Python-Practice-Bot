@@ -20,9 +20,8 @@ from app.utils.telegram_text import (
 
 router = Router()
 
-@router.callback_query(
-    F.data.startswith("project:attempts:")
-)
+
+@router.callback_query(F.data.startswith("project:attempts:"))
 async def attempts_list_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -79,6 +78,7 @@ async def attempts_list_handler(
 
     await callback.answer()
 
+
 async def show_attempt_detail(
     callback: CallbackQuery,
     attempt_id: int,
@@ -109,13 +109,9 @@ async def show_attempt_detail(
         "❔ Неизвестно",
     )
 
-    filename = escape(
-        attempt.filename
-    )
+    filename = escape(attempt.filename)
 
-    project_title = escape(
-        attempt.project_title
-    )
+    project_title = escape(attempt.project_title)
 
     text = (
         f"<b>Попытка №"
@@ -127,15 +123,9 @@ async def show_attempt_detail(
     )
 
     if attempt.xp_snapshot > 0:
-        text += (
-            "Награда при успешной проверке: "
-            f"<b>{attempt.xp_snapshot} XP</b>"
-        )
+        text += f"Награда при успешной проверке: <b>{attempt.xp_snapshot} XP</b>"
     else:
-        text += (
-            "Повторная проверка "
-            "без дополнительного XP."
-        )
+        text += "Повторная проверка без дополнительного XP."
 
     await callback.message.answer(
         text=text,
@@ -146,9 +136,7 @@ async def show_attempt_detail(
     )
 
 
-@router.callback_query(
-    F.data.startswith("attempt:open:")
-)
+@router.callback_query(F.data.startswith("attempt:open:"))
 async def attempt_detail_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -172,9 +160,7 @@ async def attempt_detail_handler(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith("attempt:code:")
-)
+@router.callback_query(F.data.startswith("attempt:code:"))
 async def attempt_code_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -205,7 +191,7 @@ async def attempt_code_handler(
     raw_code = attempt.source_code
 
     chunks = [
-        raw_code[index:index + 3000]
+        raw_code[index : index + 3000]
         for index in range(
             0,
             len(raw_code),
@@ -214,11 +200,7 @@ async def attempt_code_handler(
     ]
 
     for chunk in chunks:
-        await callback.message.answer(
-            "<pre><code>"
-            f"{escape(chunk)}"
-            "</code></pre>"
-        )
+        await callback.message.answer(f"<pre><code>{escape(chunk)}</code></pre>")
 
     await show_attempt_detail(
         callback=callback,
@@ -228,9 +210,7 @@ async def attempt_code_handler(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith("attempt:feedback:")
-)
+@router.callback_query(F.data.startswith("attempt:feedback:"))
 async def attempt_feedback_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -270,32 +250,24 @@ async def attempt_feedback_handler(
 
     if attempt.status == "error":
         await callback.answer(
-            "⚠️ Во время проверки "
-            "произошла техническая ошибка.",
+            "⚠️ Во время проверки произошла техническая ошибка.",
             show_alert=True,
         )
         return
 
     if not attempt.ai_feedback:
         await callback.answer(
-            "Результат проверки пока "
-            "не сохранён.",
+            "Результат проверки пока не сохранён.",
             show_alert=True,
         )
         return
 
-    await callback.message.answer(
-        "<b>🤖 Результат проверки</b>"
-    )
+    await callback.message.answer("<b>🤖 Результат проверки</b>")
 
-    feedback_chunks = split_telegram_text(
-        attempt.ai_feedback
-    )
+    feedback_chunks = split_telegram_text(attempt.ai_feedback)
 
     for chunk in feedback_chunks:
-        await callback.message.answer(
-            escape(chunk)
-        )
+        await callback.message.answer(escape(chunk))
 
     await show_attempt_detail(
         callback=callback,

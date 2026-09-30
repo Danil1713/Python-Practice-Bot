@@ -17,33 +17,23 @@ from sqlalchemy.ext.asyncio import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-load_dotenv(
-    PROJECT_ROOT / ".env"
-)
+load_dotenv(PROJECT_ROOT / ".env")
 
-TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL"
-)
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 
 if not TEST_DATABASE_URL:
     pytest.exit(
-        "TEST_DATABASE_URL не задан. "
-        "Тесты остановлены.",
+        "TEST_DATABASE_URL не задан. Тесты остановлены.",
         returncode=2,
     )
 
 
-test_url = make_url(
-    TEST_DATABASE_URL
-)
+test_url = make_url(TEST_DATABASE_URL)
 
 test_database_name = test_url.database
 
 
-if (
-    test_database_name is None
-    or not test_database_name.endswith("_test")
-):
+if test_database_name is None or not test_database_name.endswith("_test"):
     pytest.exit(
         "TEST_DATABASE_URL должен указывать "
         "на отдельную БД с именем, "
@@ -62,9 +52,7 @@ if not re.fullmatch(
     )
 
 
-os.environ["DATABASE_URL"] = (
-    TEST_DATABASE_URL
-)
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 
 async def create_test_database() -> None:
@@ -87,15 +75,9 @@ async def create_test_database() -> None:
             test_database_name,
         )
 
-        await connection.execute(
-            f'DROP DATABASE IF EXISTS '
-            f'"{test_database_name}"'
-        )
+        await connection.execute(f'DROP DATABASE IF EXISTS "{test_database_name}"')
 
-        await connection.execute(
-            f'CREATE DATABASE '
-            f'"{test_database_name}"'
-        )
+        await connection.execute(f'CREATE DATABASE "{test_database_name}"')
 
     finally:
         await connection.close()
@@ -121,10 +103,7 @@ async def drop_test_database() -> None:
             test_database_name,
         )
 
-        await connection.execute(
-            f'DROP DATABASE IF EXISTS '
-            f'"{test_database_name}"'
-        )
+        await connection.execute(f'DROP DATABASE IF EXISTS "{test_database_name}"')
 
     finally:
         await connection.close()
@@ -135,15 +114,11 @@ async def drop_test_database() -> None:
     autouse=True,
 )
 def migrated_test_database():
-    asyncio.run(
-        create_test_database()
-    )
+    asyncio.run(create_test_database())
 
     environment = os.environ.copy()
 
-    environment["DATABASE_URL"] = (
-        TEST_DATABASE_URL
-    )
+    environment["DATABASE_URL"] = TEST_DATABASE_URL
 
     result = subprocess.run(
         [
@@ -159,26 +134,18 @@ def migrated_test_database():
     )
 
     if result.returncode != 0:
-        asyncio.run(
-            drop_test_database()
-        )
+        asyncio.run(drop_test_database())
 
-        pytest.fail(
-            "alembic upgrade head "
-            "не прошёл на чистой БД."
-        )
+        pytest.fail("alembic upgrade head не прошёл на чистой БД.")
 
     yield
 
-    asyncio.run(
-        drop_test_database()
-    )
+    asyncio.run(drop_test_database())
+
 
 @pytest.fixture
 async def db_session():
-    engine = create_async_engine(
-        TEST_DATABASE_URL
-    )
+    engine = create_async_engine(TEST_DATABASE_URL)
 
     connection = await engine.connect()
     transaction = await connection.begin()

@@ -29,12 +29,7 @@ def get_projects_keyboard(
 
     total_pages = max(
         1,
-        (
-            total_projects
-            + PROJECTS_PER_PAGE
-            - 1
-        )
-        // PROJECTS_PER_PAGE,
+        (total_projects + PROJECTS_PER_PAGE - 1) // PROJECTS_PER_PAGE,
     )
 
     page = max(
@@ -45,33 +40,21 @@ def get_projects_keyboard(
         ),
     )
 
-    start = (
-        page * PROJECTS_PER_PAGE
-    )
+    start = page * PROJECTS_PER_PAGE
 
-    end = (
-        start + PROJECTS_PER_PAGE
-    )
+    end = start + PROJECTS_PER_PAGE
 
-    page_projects = projects[
-        start:end
-    ]
+    page_projects = projects[start:end]
 
     buttons = []
 
     for project in page_projects:
-        icon = STATUS_ICONS[
-            project.status
-        ]
+        icon = STATUS_ICONS[project.status]
 
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text=(
-                        f"{icon} Project "
-                        f"{project.number} — "
-                        f"{project.title}"
-                    ),
+                    text=(f"{icon} Project {project.number} — {project.title}"),
                     callback_data=build_callback_data(
                         "project",
                         "open",
@@ -99,10 +82,7 @@ def get_projects_keyboard(
 
         navigation.append(
             InlineKeyboardButton(
-                text=(
-                    f"{page + 1} / "
-                    f"{total_pages}"
-                ),
+                text=(f"{page + 1} / {total_pages}"),
                 callback_data=build_callback_data(
                     "projects",
                     "page",
@@ -125,9 +105,7 @@ def get_projects_keyboard(
                 )
             )
 
-        buttons.append(
-            navigation
-        )
+        buttons.append(navigation)
 
     buttons.append(
         [
@@ -142,9 +120,7 @@ def get_projects_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=buttons
-    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
     buttons.append(
         [
@@ -159,9 +135,7 @@ def get_projects_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=buttons
-    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_project_card_keyboard(
@@ -186,9 +160,7 @@ def get_project_card_keyboard(
 
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                task_button
-            ],
+            [task_button],
             [
                 InlineKeyboardButton(
                     text="📤 Отправить решение",

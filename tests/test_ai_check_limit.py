@@ -5,10 +5,7 @@ from app.services.ai_check_limit_service import (
 
 
 def test_ai_check_limit_is_five():
-    assert (
-        MAX_AI_CHECKS_PER_PROJECT
-        == 5
-    )
+    assert MAX_AI_CHECKS_PER_PROJECT == 5
 
 
 def test_four_ai_checks_leave_one():

@@ -9,10 +9,6 @@ from app.bot.handlers.attempts_submission import (
 
 router = Router()
 
-router.include_router(
-    attempts_submission_router
-)
+router.include_router(attempts_submission_router)
 
-router.include_router(
-    attempts_history_router
-)
+router.include_router(attempts_history_router)

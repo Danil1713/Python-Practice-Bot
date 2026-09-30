@@ -25,63 +25,37 @@ SETUP_STUCK_AFTER_MINUTES = 2
 
 async def get_pending_attempt_ids() -> list[int]:
     async with async_session_factory() as session:
-        repository = AttemptRepository(
-            session
+        repository = AttemptRepository(session)
+
+        setup_before = datetime.now(timezone.utc) - timedelta(
+            minutes=SETUP_STUCK_AFTER_MINUTES
         )
 
-        setup_before = (
-            datetime.now(timezone.utc)
-            - timedelta(
-                minutes=SETUP_STUCK_AFTER_MINUTES
-            )
-        )
-
-        recovered_setup = (
-            await repository
-            .recover_stuck_pending_setup(
-                before=setup_before
-            )
+        recovered_setup = await repository.recover_stuck_pending_setup(
+            before=setup_before
         )
 
         if recovered_setup > 0:
             logger.warning(
-                "Recovered %s stuck "
-                "pending AI attempts "
-                "without status message",
+                "Recovered %s stuck pending AI attempts without status message",
                 recovered_setup,
             )
 
-        before = (
-            datetime.now(timezone.utc)
-            - timedelta(
-                minutes=STUCK_AFTER_MINUTES
-            )
-        )
+        before = datetime.now(timezone.utc) - timedelta(minutes=STUCK_AFTER_MINUTES)
 
-        recovered = (
-            await repository
-            .recover_stuck_checking(
-                before=before
-            )
-        )
+        recovered = await repository.recover_stuck_checking(before=before)
 
         if recovered > 0:
             logger.warning(
-                "Recovered %s stuck "
-                "AI attempts",
+                "Recovered %s stuck AI attempts",
                 recovered,
             )
 
         await session.commit()
 
-        attempts = await repository.get_pending(
-            limit=BATCH_SIZE
-        )
+        attempts = await repository.get_pending(limit=BATCH_SIZE)
 
-        return [
-            attempt.id
-            for attempt in attempts
-        ]
+        return [attempt.id for attempt in attempts]
 
 
 async def process_attempt(
@@ -102,8 +76,7 @@ async def process_attempt(
 
         except Exception:
             logger.exception(
-                "Attempt check failed "
-                "attempt_id=%s",
+                "Attempt check failed attempt_id=%s",
                 attempt_id,
             )
 
@@ -118,20 +91,13 @@ async def process_attempt_batch(
         return
 
     concurrency = (
-        max_concurrency
-        if max_concurrency is not None
-        else get_ai_max_concurrency()
+        max_concurrency if max_concurrency is not None else get_ai_max_concurrency()
     )
 
     if concurrency <= 0:
-        raise ValueError(
-            "AI max concurrency "
-            "must be greater than 0"
-        )
+        raise ValueError("AI max concurrency must be greater than 0")
 
-    semaphore = asyncio.Semaphore(
-        concurrency
-    )
+    semaphore = asyncio.Semaphore(concurrency)
 
     await asyncio.gather(
         *[
@@ -150,9 +116,7 @@ async def run_attempt_check_worker(
 ) -> None:
     while True:
         try:
-            attempt_ids = (
-                await get_pending_attempt_ids()
-            )
+            attempt_ids = await get_pending_attempt_ids()
 
             await process_attempt_batch(
                 attempt_ids=attempt_ids,
@@ -163,11 +127,6 @@ async def run_attempt_check_worker(
             raise
 
         except Exception:
-            logger.exception(
-                "Attempt check worker "
-                "iteration failed"
-            )
+            logger.exception("Attempt check worker iteration failed")
 
-        await asyncio.sleep(
-            CHECK_INTERVAL_SECONDS
-        )
+        await asyncio.sleep(CHECK_INTERVAL_SECONDS)

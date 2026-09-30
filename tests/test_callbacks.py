@@ -30,15 +30,12 @@ def test_parse_callback_str():
 
 
 def test_parse_callback_int_str():
-    assert (
-        parse_callback_int_str(
-            "admin:post:12:python_start",
-            "admin:post",
-        )
-        == (
-            12,
-            "python_start",
-        )
+    assert parse_callback_int_str(
+        "admin:post:12:python_start",
+        "admin:post",
+    ) == (
+        12,
+        "python_start",
     )
 
 
@@ -86,11 +83,7 @@ def test_wrong_number_of_parts_is_rejected():
 
 
 def test_callback_over_64_bytes_is_rejected():
-    long_value = (
-        "x" * (
-            MAX_CALLBACK_DATA_BYTES + 1
-        )
-    )
+    long_value = "x" * (MAX_CALLBACK_DATA_BYTES + 1)
 
     assert (
         parse_callback_str(
@@ -99,6 +92,7 @@ def test_callback_over_64_bytes_is_rejected():
         )
         is None
     )
+
 
 def test_build_callback_data():
     assert (
@@ -119,10 +113,7 @@ def test_build_callback_data_allows_64_bytes():
         value,
     )
 
-    assert (
-        len(result.encode("utf-8"))
-        == 64
-    )
+    assert len(result.encode("utf-8")) == 64
 
 
 def test_build_callback_data_rejects_over_64_bytes():
@@ -138,10 +129,7 @@ def test_build_callback_data_rejects_over_64_bytes():
         pass
 
     else:
-        raise AssertionError(
-            "Callback длиннее 64 байт "
-            "должен быть отклонён."
-        )
+        raise AssertionError("Callback длиннее 64 байт должен быть отклонён.")
 
 
 def test_build_callback_data_counts_utf8_bytes():
@@ -157,10 +145,7 @@ def test_build_callback_data_counts_utf8_bytes():
         pass
 
     else:
-        raise AssertionError(
-            "Нужно считать UTF-8 байты, "
-            "а не количество символов."
-        )
+        raise AssertionError("Нужно считать UTF-8 байты, а не количество символов.")
 
 
 def test_build_callback_data_rejects_colon_inside_part():
@@ -174,7 +159,4 @@ def test_build_callback_data_rejects_colon_inside_part():
         pass
 
     else:
-        raise AssertionError(
-            "':' внутри части должен "
-            "быть запрещён."
-        )
+        raise AssertionError("':' внутри части должен быть запрещён.")

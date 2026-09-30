@@ -54,16 +54,16 @@ def get_main_menu_keyboard(
         )
 
     buttons.append(
-            [
-                InlineKeyboardButton(
-                    text="ℹ️ О курсе",
-                    callback_data=build_callback_data(
-                        "menu",
-                        "about",
-                        course_slug,
-                    ),
-                )
-            ],
+        [
+            InlineKeyboardButton(
+                text="ℹ️ О курсе",
+                callback_data=build_callback_data(
+                    "menu",
+                    "about",
+                    course_slug,
+                ),
+            )
+        ],
     )
     if is_admin_user:
         buttons.append(
@@ -79,17 +79,15 @@ def get_main_menu_keyboard(
             ]
         )
     buttons.append(
-            [
-                InlineKeyboardButton(
-                    text="🔄 Сменить уровень",
-                    callback_data="nav:courses",
-                )
-            ],
+        [
+            InlineKeyboardButton(
+                text="🔄 Сменить уровень",
+                callback_data="nav:courses",
+            )
+        ],
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=buttons
-    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_back_to_menu_keyboard(course_slug: str) -> InlineKeyboardMarkup:

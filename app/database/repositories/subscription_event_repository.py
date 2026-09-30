@@ -21,16 +21,11 @@ class SubscriptionEventRepository:
         self,
         idempotency_key: str,
     ) -> SubscriptionEvent | None:
-        statement = select(
-            SubscriptionEvent
-        ).where(
-            SubscriptionEvent.idempotency_key
-            == idempotency_key
+        statement = select(SubscriptionEvent).where(
+            SubscriptionEvent.idempotency_key == idempotency_key
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
@@ -57,9 +52,7 @@ class SubscriptionEventRepository:
             subscription_id=subscription_id,
             user_id=user_id,
             course_id=course_id,
-            actor_telegram_id=(
-                actor_telegram_id
-            ),
+            actor_telegram_id=(actor_telegram_id),
             event_type=event_type,
             source=source,
             reason=reason,

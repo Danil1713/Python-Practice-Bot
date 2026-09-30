@@ -20,23 +20,12 @@ STUCK_AFTER_MINUTES = 15
 
 
 async def mark_stale_payments_for_review() -> int:
-    before = (
-        datetime.now(timezone.utc)
-        - timedelta(
-            minutes=STUCK_AFTER_MINUTES
-        )
-    )
+    before = datetime.now(timezone.utc) - timedelta(minutes=STUCK_AFTER_MINUTES)
 
     async with async_session_factory() as session:
-        repository = PaymentRepository(
-            session
-        )
+        repository = PaymentRepository(session)
 
-        payments = (
-            await repository.get_stale_pre_checkout(
-                before=before
-            )
-        )
+        payments = await repository.get_stale_pre_checkout(before=before)
 
         for payment in payments:
             await repository.mark_review(
@@ -56,14 +45,11 @@ async def mark_stale_payments_for_review() -> int:
 async def run_payment_recovery() -> None:
     while True:
         try:
-            review_count = (
-                await mark_stale_payments_for_review()
-            )
+            review_count = await mark_stale_payments_for_review()
 
             if review_count > 0:
                 logger.warning(
-                    "Marked %s payments "
-                    "for reconciliation",
+                    "Marked %s payments for reconciliation",
                     review_count,
                 )
 
@@ -71,10 +57,6 @@ async def run_payment_recovery() -> None:
             raise
 
         except Exception:
-            logger.exception(
-                "Payment recovery failed"
-            )
+            logger.exception("Payment recovery failed")
 
-        await asyncio.sleep(
-            CHECK_INTERVAL_SECONDS
-        )
+        await asyncio.sleep(CHECK_INTERVAL_SECONDS)

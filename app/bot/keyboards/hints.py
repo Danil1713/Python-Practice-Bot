@@ -18,27 +18,17 @@ def get_hints_keyboard(
     buttons = []
 
     for hint in hints:
-        icon = (
-            "💡"
-            if hint.is_published
-            else "🔒"
-        )
+        icon = "💡" if hint.is_published else "🔒"
 
         if hint.telegram_url is not None:
             button = InlineKeyboardButton(
-                text=(
-                    f"{icon} Подсказка "
-                    f"{hint.number}"
-                ),
+                text=(f"{icon} Подсказка {hint.number}"),
                 url=hint.telegram_url,
             )
 
         else:
             button = InlineKeyboardButton(
-                text=(
-                    f"{icon} Подсказка "
-                    f"{hint.number}"
-                ),
+                text=(f"{icon} Подсказка {hint.number}"),
                 callback_data=build_callback_data(
                     "hint",
                     "open",
@@ -46,9 +36,7 @@ def get_hints_keyboard(
                 ),
             )
 
-        buttons.append(
-            [button]
-        )
+        buttons.append([button])
 
     buttons.append(
         [
@@ -63,6 +51,4 @@ def get_hints_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=buttons
-    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

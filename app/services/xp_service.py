@@ -37,52 +37,31 @@ async def get_course_xp(
     course_slug: str,
 ) -> CourseXPView | None:
     async with async_session_factory() as session:
-        user_repository = UserRepository(
-            session
-        )
+        user_repository = UserRepository(session)
 
-        course_repository = CourseRepository(
-            session
-        )
+        course_repository = CourseRepository(session)
 
-        xp_repository = XPRepository(
-            session
-        )
+        xp_repository = XPRepository(session)
 
-        user = (
-            await user_repository
-            .get_by_telegram_id(
-                telegram_user_id
-            )
-        )
+        user = await user_repository.get_by_telegram_id(telegram_user_id)
 
         if user is None:
             return None
 
-        course = (
-            await course_repository.get_by_slug(
-                course_slug
-            )
-        )
+        course = await course_repository.get_by_slug(course_slug)
 
         if course is None:
             return None
 
-        total_xp = (
-            await xp_repository
-            .get_total_by_course(
-                user_id=user.id,
-                course_id=course.id,
-            )
+        total_xp = await xp_repository.get_total_by_course(
+            user_id=user.id,
+            course_id=course.id,
         )
 
-        transactions = (
-            await xp_repository
-            .get_recent_by_course(
-                user_id=user.id,
-                course_id=course.id,
-                limit=10,
-            )
+        transactions = await xp_repository.get_recent_by_course(
+            user_id=user.id,
+            course_id=course.id,
+            limit=10,
         )
 
         history: list[XPHistoryItem] = []
@@ -96,15 +75,9 @@ async def get_course_xp(
                 XPHistoryItem(
                     amount=transaction.amount,
                     reason=transaction.reason,
-                    project_number=(
-                        project_number
-                    ),
-                    project_title=(
-                        project_title
-                    ),
-                    created_at=(
-                        transaction.created_at
-                    ),
+                    project_number=(project_number),
+                    project_title=(project_title),
+                    created_at=(transaction.created_at),
                 )
             )
 

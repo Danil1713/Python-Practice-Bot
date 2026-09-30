@@ -23,6 +23,4 @@ def get_courses_keyboard(
         for course in courses
     ]
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=buttons
-    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

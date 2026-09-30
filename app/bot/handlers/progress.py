@@ -29,9 +29,7 @@ STATUS_ICONS = {
 }
 
 
-@router.callback_query(
-    F.data.startswith("menu:progress:")
-)
+@router.callback_query(F.data.startswith("menu:progress:"))
 async def progress_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -48,8 +46,8 @@ async def progress_handler(
         return
 
     if not await check_current_course(
-            callback,
-            course_slug,
+        callback,
+        course_slug,
     ):
         return
 
@@ -65,23 +63,13 @@ async def progress_handler(
         )
         return
 
-    course_title = escape(
-        view.course_title
-    )
+    course_title = escape(view.course_title)
 
     lines = [
-        f"<b>📊 Прогресс — "
-        f"{course_title}</b>",
+        f"<b>📊 Прогресс — {course_title}</b>",
         "",
-        (
-            f"Выполнено проектов: "
-            f"<b>{view.completed_count} "
-            f"/ {view.total_count}</b>"
-        ),
-        (
-            f"Прогресс: "
-            f"<b>{view.percent}%</b>"
-        ),
+        (f"Выполнено проектов: <b>{view.completed_count} / {view.total_count}</b>"),
+        (f"Прогресс: <b>{view.percent}%</b>"),
         "",
     ]
 
@@ -91,15 +79,9 @@ async def progress_handler(
             "❔",
         )
 
-        lines.append(
-            f"{icon} Project "
-            f"{project.number} — "
-            f"{escape(project.title)}"
-        )
+        lines.append(f"{icon} Project {project.number} — {escape(project.title)}")
 
-    chunks = split_telegram_lines(
-        lines
-    )
+    chunks = split_telegram_lines(lines)
 
     if not chunks:
         await callback.answer(
@@ -111,26 +93,18 @@ async def progress_handler(
     if len(chunks) == 1:
         await callback.message.edit_text(
             text=chunks[0],
-            reply_markup=get_progress_keyboard(
-                view.course_slug
-            ),
+            reply_markup=get_progress_keyboard(view.course_slug),
         )
 
     else:
-        await callback.message.edit_text(
-            text=chunks[0]
-        )
+        await callback.message.edit_text(text=chunks[0])
 
         for chunk in chunks[1:-1]:
-            await callback.message.answer(
-                chunk
-            )
+            await callback.message.answer(chunk)
 
         await callback.message.answer(
             chunks[-1],
-            reply_markup=get_progress_keyboard(
-                view.course_slug
-            ),
+            reply_markup=get_progress_keyboard(view.course_slug),
         )
 
     await callback.answer()

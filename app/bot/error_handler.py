@@ -14,8 +14,7 @@ async def global_error_handler(
         update_id = event.update.update_id
 
     logger.error(
-        "Unhandled Telegram update error "
-        "update_id=%s",
+        "Unhandled Telegram update error update_id=%s",
         update_id,
         exc_info=(
             type(event.exception),

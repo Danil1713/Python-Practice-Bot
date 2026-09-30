@@ -32,9 +32,7 @@ from app.services.user_service import (
 router = Router()
 
 
-@router.callback_query(
-    F.data.startswith("course:")
-)
+@router.callback_query(F.data.startswith("course:"))
 async def select_course_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -51,9 +49,7 @@ async def select_course_handler(
         )
         return
 
-    course = await get_course_by_slug(
-        course_slug
-    )
+    course = await get_course_by_slug(course_slug)
 
     if course is None:
         await callback.answer(
@@ -62,19 +58,11 @@ async def select_course_handler(
         )
         return
 
-    current_course_slug = (
-        await get_current_course_slug(
-            callback.from_user.id
-        )
-    )
+    current_course_slug = await get_current_course_slug(callback.from_user.id)
 
-    if (
-            current_course_slug is not None
-            and current_course_slug != course.slug
-    ):
+    if current_course_slug is not None and current_course_slug != course.slug:
         await callback.answer(
-            "Сначала нажми "
-            "«Сменить уровень».",
+            "Сначала нажми «Сменить уровень».",
             show_alert=True,
         )
         return
@@ -87,30 +75,22 @@ async def select_course_handler(
 
         if not selected:
             await callback.answer(
-                "Не удалось выбрать уровень. "
-                "Попробуй /start.",
+                "Не удалось выбрать уровень. Попробуй /start.",
                 show_alert=True,
             )
             return
 
     await state.clear()
 
-    course_title = escape(
-        course.title
-    )
+    course_title = escape(course.title)
 
-    has_subscription = (
-        await has_active_subscription(
-            telegram_user_id=callback.from_user.id,
-            course_slug=course.slug,
-        )
+    has_subscription = await has_active_subscription(
+        telegram_user_id=callback.from_user.id,
+        course_slug=course.slug,
     )
 
     if has_subscription:
-        text = (
-            f"<b>{course_title}</b>\n\n"
-            "Выбери нужный раздел:"
-        )
+        text = f"<b>{course_title}</b>\n\nВыбери нужный раздел:"
 
     else:
         text = (
@@ -129,38 +109,27 @@ async def select_course_handler(
         reply_markup=get_main_menu_keyboard(
             course_slug=course.slug,
             requires_subscription=course.requires_subscription,
-            is_admin_user=is_admin(
-                callback.from_user.id
-            ),
+            is_admin_user=is_admin(callback.from_user.id),
         ),
     )
 
     await callback.answer()
 
 
-@router.callback_query(
-    F.data == "nav:courses"
-)
+@router.callback_query(F.data == "nav:courses")
 async def back_to_courses_handler(
     callback: CallbackQuery,
     state: FSMContext,
 ) -> None:
     await state.clear()
 
-    await clear_current_course(
-        callback.from_user.id
-    )
+    await clear_current_course(callback.from_user.id)
 
     courses = await get_active_courses()
 
     await callback.message.edit_text(
-        text=(
-            "Выбери уровень, "
-            "с которым хочешь работать:"
-        ),
-        reply_markup=get_courses_keyboard(
-            courses
-        ),
+        text=("Выбери уровень, с которым хочешь работать:"),
+        reply_markup=get_courses_keyboard(courses),
     )
 
     await callback.answer()

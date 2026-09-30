@@ -22,9 +22,7 @@ from app.services.payment_service import (
     retry_payment_activation,
 )
 
-DATABASE_URL = os.environ[
-    "DATABASE_URL"
-]
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 
 async def create_test_payment(
@@ -32,9 +30,7 @@ async def create_test_payment(
     suffix: str,
     telegram_id: int,
 ) -> tuple[int, int, int]:
-    engine = create_async_engine(
-        DATABASE_URL
-    )
+    engine = create_async_engine(DATABASE_URL)
 
     session_factory = async_sessionmaker(
         bind=engine,
@@ -46,9 +42,7 @@ async def create_test_payment(
         async with session_factory() as session:
             user = User(
                 telegram_id=telegram_id,
-                username=(
-                    f"payment_user_{suffix}"
-                ),
+                username=(f"payment_user_{suffix}"),
                 first_name="Test",
             )
 
@@ -56,9 +50,7 @@ async def create_test_payment(
             await session.flush()
 
             course = Course(
-                slug=(
-                    f"payment_course_{suffix}"
-                ),
+                slug=(f"payment_course_{suffix}"),
                 title="Payment test",
                 requires_subscription=True,
                 is_active=True,
@@ -93,9 +85,7 @@ async def create_test_payment(
 async def get_payment(
     payment_id: int,
 ) -> Payment:
-    engine = create_async_engine(
-        DATABASE_URL
-    )
+    engine = create_async_engine(DATABASE_URL)
 
     session_factory = async_sessionmaker(
         bind=engine,
@@ -106,10 +96,7 @@ async def get_payment(
     try:
         async with session_factory() as session:
             result = await session.execute(
-                select(Payment).where(
-                    Payment.id
-                    == payment_id
-                )
+                select(Payment).where(Payment.id == payment_id)
             )
 
             return result.scalar_one()
@@ -123,9 +110,7 @@ async def get_subscription(
     user_id: int,
     course_id: int,
 ) -> Subscription | None:
-    engine = create_async_engine(
-        DATABASE_URL
-    )
+    engine = create_async_engine(DATABASE_URL)
 
     session_factory = async_sessionmaker(
         bind=engine,
@@ -137,10 +122,8 @@ async def get_subscription(
         async with session_factory() as session:
             result = await session.execute(
                 select(Subscription).where(
-                    Subscription.user_id
-                    == user_id,
-                    Subscription.course_id
-                    == course_id,
+                    Subscription.user_id == user_id,
+                    Subscription.course_id == course_id,
                 )
             )
 
@@ -163,82 +146,54 @@ async def test_successful_payment_is_idempotent():
         telegram_id=telegram_id,
     )
 
-    first_result = (
-        await process_telegram_stars_payment(
-            payment_id=payment_id,
-            telegram_user_id=telegram_id,
-            telegram_payment_charge_id=(
-                "charge_idempotency"
-            ),
-            currency="XTR",
-            total_amount=150,
-        )
+    first_result = await process_telegram_stars_payment(
+        payment_id=payment_id,
+        telegram_user_id=telegram_id,
+        telegram_payment_charge_id=("charge_idempotency"),
+        currency="XTR",
+        total_amount=150,
     )
 
     assert first_result is not None
     assert first_result.subscription_days == 30
 
-    first_payment = await get_payment(
-        payment_id
-    )
+    first_payment = await get_payment(payment_id)
 
-    first_subscription = (
-        await get_subscription(
-            user_id=user_id,
-            course_id=course_id,
-        )
+    first_subscription = await get_subscription(
+        user_id=user_id,
+        course_id=course_id,
     )
 
     assert first_payment.status == "succeeded"
-    assert (
-        first_payment.external_payment_id
-        == "charge_idempotency"
-    )
+    assert first_payment.external_payment_id == "charge_idempotency"
     assert first_payment.paid_at is not None
 
     assert first_subscription is not None
 
-    first_ends_at = (
-        first_subscription.ends_at
-    )
+    first_ends_at = first_subscription.ends_at
 
-    second_result = (
-        await process_telegram_stars_payment(
-            payment_id=payment_id,
-            telegram_user_id=telegram_id,
-            telegram_payment_charge_id=(
-                "charge_idempotency"
-            ),
-            currency="XTR",
-            total_amount=150,
-        )
+    second_result = await process_telegram_stars_payment(
+        payment_id=payment_id,
+        telegram_user_id=telegram_id,
+        telegram_payment_charge_id=("charge_idempotency"),
+        currency="XTR",
+        total_amount=150,
     )
 
     assert second_result is not None
 
-    assert (
-            second_result.course_slug
-            == "payment_course_idempotency"
-    )
+    assert second_result.course_slug == "payment_course_idempotency"
 
-    assert (
-            second_result.subscription_days
-            == 30
-    )
+    assert second_result.subscription_days == 30
 
-    second_subscription = (
-        await get_subscription(
-            user_id=user_id,
-            course_id=course_id,
-        )
+    second_subscription = await get_subscription(
+        user_id=user_id,
+        course_id=course_id,
     )
 
     assert second_subscription is not None
 
-    assert (
-        second_subscription.ends_at
-        == first_ends_at
-    )
+    assert second_subscription.ends_at == first_ends_at
 
 
 @pytest.mark.asyncio
@@ -262,30 +217,22 @@ async def test_cancelled_payment_can_still_succeed():
 
     assert cancelled is True
 
-    payment = await get_payment(
-        payment_id
-    )
+    payment = await get_payment(payment_id)
 
     assert payment.status == "cancelled"
 
-    processed = (
-        await process_telegram_stars_payment(
-            payment_id=payment_id,
-            telegram_user_id=telegram_id,
-            telegram_payment_charge_id=(
-                "charge_cancelled"
-            ),
-            currency="XTR",
-            total_amount=150,
-        )
+    processed = await process_telegram_stars_payment(
+        payment_id=payment_id,
+        telegram_user_id=telegram_id,
+        telegram_payment_charge_id=("charge_cancelled"),
+        currency="XTR",
+        total_amount=150,
     )
 
     assert processed is not None
     assert processed.subscription_days == 30
 
-    payment = await get_payment(
-        payment_id
-    )
+    payment = await get_payment(payment_id)
 
     assert payment.status == "succeeded"
 
@@ -347,29 +294,20 @@ async def test_invalid_payment_data_does_not_activate_subscription(
         telegram_id=actual_telegram_id,
     )
 
-    with pytest.raises(
-        PaymentError
-    ):
+    with pytest.raises(PaymentError):
         await process_telegram_stars_payment(
             payment_id=payment_id,
             telegram_user_id=telegram_id,
-            telegram_payment_charge_id=(
-                f"charge_invalid_{wrong_field}"
-            ),
+            telegram_payment_charge_id=(f"charge_invalid_{wrong_field}"),
             currency=currency,
             total_amount=amount,
         )
 
-    payment = await get_payment(
-        payment_id
-    )
+    payment = await get_payment(payment_id)
 
     assert payment.status == "pending"
 
-    assert (
-        payment.external_payment_id
-        is None
-    )
+    assert payment.external_payment_id is None
 
     subscription = await get_subscription(
         user_id=user_id,
@@ -385,9 +323,7 @@ async def mark_test_payment_review(
     external_payment_id: str,
     error_message: str,
 ) -> None:
-    engine = create_async_engine(
-        DATABASE_URL
-    )
+    engine = create_async_engine(DATABASE_URL)
 
     session_factory = async_sessionmaker(
         bind=engine,
@@ -405,12 +341,8 @@ async def mark_test_payment_review(
             assert payment is not None
 
             payment.status = "review"
-            payment.external_payment_id = (
-                external_payment_id
-            )
-            payment.error_message = (
-                error_message
-            )
+            payment.external_payment_id = external_payment_id
+            payment.error_message = error_message
 
             await session.commit()
 
@@ -434,47 +366,27 @@ async def test_review_payment_can_be_retried():
 
     await mark_test_payment_review(
         payment_id=payment_id,
-        external_payment_id=(
-            "charge_review_retry"
-        ),
-        error_message=(
-            "Temporary activation error"
-        ),
+        external_payment_id=("charge_review_retry"),
+        error_message=("Temporary activation error"),
     )
 
-    course_slug = (
-        f"payment_course_{suffix}"
-    )
+    course_slug = f"payment_course_{suffix}"
 
-    review_payments = (
-        await get_review_payments_for_course(
-            course_slug
-        )
-    )
+    review_payments = await get_review_payments_for_course(course_slug)
 
     assert len(review_payments) == 1
 
     review_payment = review_payments[0]
 
     assert review_payment.id == payment_id
-    assert (
-        review_payment.telegram_user_id
-        == telegram_id
-    )
-    assert (
-        review_payment.error_message
-        == "Temporary activation error"
-    )
+    assert review_payment.telegram_user_id == telegram_id
+    assert review_payment.error_message == "Temporary activation error"
 
-    activated = await retry_payment_activation(
-        payment_id=payment_id
-    )
+    activated = await retry_payment_activation(payment_id=payment_id)
 
     assert activated is True
 
-    payment = await get_payment(
-        payment_id
-    )
+    payment = await get_payment(payment_id)
 
     assert payment.status == "succeeded"
     assert payment.error_message is None
@@ -486,19 +398,11 @@ async def test_review_payment_can_be_retried():
 
     assert subscription is not None
 
-    review_payments = (
-        await get_review_payments_for_course(
-            course_slug
-        )
-    )
+    review_payments = await get_review_payments_for_course(course_slug)
 
     assert review_payments == []
 
-    second_activation = (
-        await retry_payment_activation(
-            payment_id=payment_id
-        )
-    )
+    second_activation = await retry_payment_activation(payment_id=payment_id)
 
     assert second_activation is False
 
@@ -526,8 +430,6 @@ async def test_cancel_payment_rejects_wrong_course():
             course_slug="wrong-course",
         )
 
-    payment = await get_payment(
-        payment_id
-    )
+    payment = await get_payment(payment_id)
 
     assert payment.status == "pending"

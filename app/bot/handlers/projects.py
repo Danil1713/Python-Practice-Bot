@@ -48,9 +48,7 @@ async def show_projects_page(
         return
 
     view = await get_course_projects(
-        telegram_user_id=(
-            callback.from_user.id
-        ),
+        telegram_user_id=(callback.from_user.id),
         course_slug=course_slug,
     )
 
@@ -61,9 +59,7 @@ async def show_projects_page(
         )
         return
 
-    course_title = escape(
-        view.course_title
-    )
+    course_title = escape(view.course_title)
 
     text = (
         f"<b>📚 Проекты — "
@@ -86,9 +82,7 @@ async def show_projects_page(
     )
 
 
-@router.callback_query(
-    F.data.startswith("menu:projects:")
-)
+@router.callback_query(F.data.startswith("menu:projects:"))
 async def projects_list_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -113,9 +107,7 @@ async def projects_list_handler(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith("projects:page:")
-)
+@router.callback_query(F.data.startswith("projects:page:"))
 async def projects_page_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -149,9 +141,7 @@ async def projects_page_handler(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith("project:open:")
-)
+@router.callback_query(F.data.startswith("project:open:"))
 async def project_card_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -180,15 +170,14 @@ async def project_card_handler(
         return
 
     if not await check_current_course(
-            callback,
-            project.course_slug,
+        callback,
+        project.course_slug,
     ):
         return
 
     if project.status == "locked":
         await callback.answer(
-            "🔒 Проект ещё не опубликован "
-            "в канале.",
+            "🔒 Проект ещё не опубликован в канале.",
             show_alert=True,
         )
         return
@@ -211,9 +200,7 @@ async def project_card_handler(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith("project:task:")
-)
+@router.callback_query(F.data.startswith("project:task:"))
 async def project_task_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -229,8 +216,6 @@ async def project_task_handler(
         )
         return
 
-
-
     project = await get_project_card(
         telegram_user_id=callback.from_user.id,
         project_id=project_id,
@@ -244,8 +229,8 @@ async def project_task_handler(
         return
 
     if not await check_current_course(
-            callback,
-            project.course_slug,
+        callback,
+        project.course_slug,
     ):
         return
 
@@ -256,24 +241,21 @@ async def project_task_handler(
 
     if not active:
         await callback.answer(
-            "🔒 Задание доступно только "
-            "при активной подписке.",
+            "🔒 Задание доступно только при активной подписке.",
             show_alert=True,
         )
         return
 
     if project.telegram_message_id is None:
         await callback.answer(
-            "Пост проекта пока не привязан "
-            "к Telegram.",
+            "Пост проекта пока не привязан к Telegram.",
             show_alert=True,
         )
         return
 
     if project.telegram_channel_id is None:
         await callback.answer(
-            "Telegram-канал курса "
-            "не настроен.",
+            "Telegram-канал курса не настроен.",
             show_alert=True,
         )
         return
@@ -285,15 +267,12 @@ async def project_task_handler(
 
     if post_url is None:
         await callback.answer(
-            "Не удалось сформировать "
-            "ссылку на публикацию.",
+            "Не удалось сформировать ссылку на публикацию.",
             show_alert=True,
         )
         return
 
-    project_title = escape(
-        project.title
-    )
+    project_title = escape(project.title)
 
     await callback.message.answer(
         text=(

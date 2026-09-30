@@ -43,15 +43,9 @@ class PaymentRepository:
         self,
         payment_id: int,
     ) -> Payment | None:
-        statement = select(
-            Payment
-        ).where(
-            Payment.id == payment_id
-        )
+        statement = select(Payment).where(Payment.id == payment_id)
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
@@ -59,16 +53,11 @@ class PaymentRepository:
         self,
         external_payment_id: str,
     ) -> Payment | None:
-        statement = select(
-            Payment
-        ).where(
-            Payment.external_payment_id
-            == external_payment_id
+        statement = select(Payment).where(
+            Payment.external_payment_id == external_payment_id
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
@@ -77,16 +66,14 @@ class PaymentRepository:
         payment: Payment,
         external_payment_id: str,
     ) -> None:
-        payment.external_payment_id = (
-            external_payment_id
-        )
+        payment.external_payment_id = external_payment_id
 
         await self.session.flush()
 
     async def mark_succeeded(
-            self,
-            payment: Payment,
-            paid_at: datetime,
+        self,
+        payment: Payment,
+        paid_at: datetime,
     ) -> None:
         payment.status = "succeeded"
         payment.paid_at = paid_at
@@ -103,27 +90,19 @@ class PaymentRepository:
         await self.session.flush()
 
     async def get_by_id_for_update(
-            self,
-            payment_id: int,
+        self,
+        payment_id: int,
     ) -> Payment | None:
-        statement = (
-            select(Payment)
-            .where(
-                Payment.id == payment_id
-            )
-            .with_for_update()
-        )
+        statement = select(Payment).where(Payment.id == payment_id).with_for_update()
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def mark_pre_checkout(
-            self,
-            payment: Payment,
-            at: datetime,
+        self,
+        payment: Payment,
+        at: datetime,
     ) -> None:
         payment.pre_checkout_at = at
         payment.error_message = None
@@ -131,9 +110,9 @@ class PaymentRepository:
         await self.session.flush()
 
     async def mark_review(
-            self,
-            payment: Payment,
-            error_message: str,
+        self,
+        payment: Payment,
+        error_message: str,
     ) -> None:
         payment.status = "review"
         payment.error_message = error_message
@@ -141,9 +120,9 @@ class PaymentRepository:
         await self.session.flush()
 
     async def get_stale_pre_checkout(
-            self,
-            before: datetime,
-            limit: int = 100,
+        self,
+        before: datetime,
+        limit: int = 100,
     ) -> list[Payment]:
         statement = (
             select(Payment)
@@ -152,28 +131,20 @@ class PaymentRepository:
                 Payment.pre_checkout_at.is_not(None),
                 Payment.pre_checkout_at <= before,
             )
-            .order_by(
-                Payment.pre_checkout_at
-            )
+            .order_by(Payment.pre_checkout_at)
             .limit(limit)
-            .with_for_update(
-                skip_locked=True
-            )
+            .with_for_update(skip_locked=True)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())
 
     async def get_review_payments(
-            self,
-            *,
-            course_id: int,
-            limit: int = 50,
+        self,
+        *,
+        course_id: int,
+        limit: int = 50,
     ) -> list[Payment]:
         statement = (
             select(Payment)
@@ -181,16 +152,10 @@ class PaymentRepository:
                 Payment.status == "review",
                 Payment.course_id == course_id,
             )
-            .order_by(
-                Payment.created_at.asc()
-            )
+            .order_by(Payment.created_at.asc())
             .limit(limit)
         )
 
-        result = await self.session.execute(
-            statement
-        )
+        result = await self.session.execute(statement)
 
-        return list(
-            result.scalars().all()
-        )
+        return list(result.scalars().all())

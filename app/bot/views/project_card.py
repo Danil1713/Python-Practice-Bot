@@ -37,10 +37,7 @@ def get_project_task_url(
     if not active_subscription:
         return None
 
-    if (
-        project.telegram_channel_id is None
-        or project.telegram_message_id is None
-    ):
+    if project.telegram_channel_id is None or project.telegram_message_id is None:
         return None
 
     return build_channel_message_url(
@@ -75,26 +72,17 @@ def render_project_card(
     if project.status == "completed":
         status_text = "✅ Выполнен"
 
-        xp_text = (
-            "Получено: "
-            f"<b>{project.awarded_xp} XP</b>"
-        )
+        xp_text = f"Получено: <b>{project.awarded_xp} XP</b>"
 
     elif project.status == "pending":
         status_text = "⏳ На проверке"
 
-        xp_text = (
-            "Текущая награда проекта: "
-            f"<b>{project.current_xp} XP</b>"
-        )
+        xp_text = f"Текущая награда проекта: <b>{project.current_xp} XP</b>"
 
     else:
         status_text = "🟡 Не выполнен"
 
-        xp_text = (
-            "Награда сейчас: "
-            f"<b>{project.current_xp} XP</b>"
-        )
+        xp_text = f"Награда сейчас: <b>{project.current_xp} XP</b>"
 
     keyboard = get_project_card_markup(
         project,

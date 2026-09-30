@@ -47,21 +47,15 @@ def build_review_payments_text(
     ]
 
     if not payments:
-        lines.append(
-            "✅ Платежей, требующих проверки, нет."
-        )
+        lines.append("✅ Платежей, требующих проверки, нет.")
 
         return "\n".join(lines)
 
     for payment in payments:
         if payment.username:
-            user_label = (
-                f"@{payment.username}"
-            )
+            user_label = f"@{payment.username}"
         else:
-            user_label = str(
-                payment.telegram_user_id
-            )
+            user_label = str(payment.telegram_user_id)
 
         lines.append(
             (
@@ -75,11 +69,7 @@ def build_review_payments_text(
     return "\n".join(lines)
 
 
-@router.callback_query(
-    F.data.startswith(
-        "admin:payreview:"
-    )
-)
+@router.callback_query(F.data.startswith("admin:payreview:"))
 async def admin_review_payments_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -101,9 +91,7 @@ async def admin_review_payments_handler(
         )
         return
 
-    course = await get_course_by_slug(
-        course_slug
-    )
+    course = await get_course_by_slug(course_slug)
 
     if course is None:
         await callback.answer(
@@ -113,11 +101,7 @@ async def admin_review_payments_handler(
         return
 
     try:
-        payments = (
-            await get_review_payments_for_course(
-                course_slug
-            )
-        )
+        payments = await get_review_payments_for_course(course_slug)
 
     except PaymentError as error:
         await callback.answer(
@@ -140,11 +124,7 @@ async def admin_review_payments_handler(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith(
-        "admin:payreview-item:"
-    )
-)
+@router.callback_query(F.data.startswith("admin:payreview-item:"))
 async def admin_review_payment_handler(
     callback: CallbackQuery,
 ) -> None:
@@ -172,34 +152,22 @@ async def admin_review_payment_handler(
 
     if payment is None:
         await callback.answer(
-            "Платёж уже обработан "
-            "или не найден.",
+            "Платёж уже обработан или не найден.",
             show_alert=True,
         )
         return
 
     if payment.username:
-        user_label = (
-            f"@{payment.username}"
-        )
+        user_label = f"@{payment.username}"
     else:
         user_label = "—"
 
-    error_text = (
-        payment.error_message
-        or "Ошибка не указана."
-    )
+    error_text = payment.error_message or "Ошибка не указана."
 
     if len(error_text) > 1000:
-        error_text = (
-            error_text[:1000]
-            + "..."
-        )
+        error_text = error_text[:1000] + "..."
 
-    charge_id = (
-        payment.external_payment_id
-        or "не сохранён"
-    )
+    charge_id = payment.external_payment_id or "не сохранён"
 
     await callback.message.edit_text(
         text=(
@@ -234,11 +202,7 @@ async def admin_review_payment_handler(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith(
-        "admin:payreview-retry:"
-    )
-)
+@router.callback_query(F.data.startswith("admin:payreview-retry:"))
 async def admin_review_payment_retry_handler(
     callback: CallbackQuery,
     bot: Bot,
@@ -267,16 +231,13 @@ async def admin_review_payment_retry_handler(
 
     if payment is None:
         await callback.answer(
-            "Платёж уже обработан "
-            "или не найден.",
+            "Платёж уже обработан или не найден.",
             show_alert=True,
         )
         return
 
     try:
-        activated = await retry_payment_activation(
-            payment_id=payment_id
-        )
+        activated = await retry_payment_activation(payment_id=payment_id)
 
     except PaymentError as error:
         await callback.answer(
@@ -321,23 +282,15 @@ async def admin_review_payment_retry_handler(
             payment.telegram_user_id,
         )
 
-    course = await get_course_by_slug(
-        course_slug
-    )
+    course = await get_course_by_slug(course_slug)
 
     if course is None:
-        await callback.message.edit_text(
-            "✅ Подписка активирована."
-        )
+        await callback.message.edit_text("✅ Подписка активирована.")
 
         await callback.answer()
         return
 
-    payments = (
-        await get_review_payments_for_course(
-            course_slug
-        )
-    )
+    payments = await get_review_payments_for_course(course_slug)
 
     await callback.message.edit_text(
         text=(
@@ -357,14 +310,10 @@ async def admin_review_payment_retry_handler(
     )
 
     if notification_sent:
-        await callback.answer(
-            "Подписка активирована."
-        )
+        await callback.answer("Подписка активирована.")
 
     else:
         await callback.answer(
-            "Подписка активирована, "
-            "но уведомление пользователю "
-            "не отправилось.",
+            "Подписка активирована, но уведомление пользователю не отправилось.",
             show_alert=True,
         )

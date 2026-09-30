@@ -23,9 +23,7 @@ class Payment(Base):
             name="ck_payments_provider",
         ),
         CheckConstraint(
-            "status IN "
-            "('pending', 'cancelled', "
-            "'review', 'succeeded')",
+            "status IN ('pending', 'cancelled', 'review', 'succeeded')",
             name="ck_payments_status",
         ),
         CheckConstraint(
@@ -69,13 +67,11 @@ class Payment(Base):
         nullable=False,
     )
 
-    external_payment_id: Mapped[str | None] = (
-        mapped_column(
-            String(255),
-            unique=True,
-            nullable=True,
-            index=True,
-        )
+    external_payment_id: Mapped[str | None] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=True,
+        index=True,
     )
 
     status: Mapped[str] = mapped_column(

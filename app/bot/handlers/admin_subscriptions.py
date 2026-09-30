@@ -37,11 +37,7 @@ from app.services.course_service import (
 router = Router()
 
 
-@router.callback_query(
-    F.data.startswith(
-        "admin:subscriptions:"
-    )
-)
+@router.callback_query(F.data.startswith("admin:subscriptions:"))
 async def admin_subscriptions_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -63,10 +59,7 @@ async def admin_subscriptions_handler(
         )
         return
 
-    await state.set_state(
-        AdminScheduleStates
-        .searching_subscription_user
-    )
+    await state.set_state(AdminScheduleStates.searching_subscription_user)
 
     await state.update_data(
         subscription_course_slug=course_slug,
@@ -83,50 +76,31 @@ async def admin_subscriptions_handler(
             "<code>123456789</code>\n"
             "<code>@username</code>"
         ),
-        reply_markup=(
-            get_subscription_confirm_keyboard(
-                show_confirm=False
-            )
-        ),
+        reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
     )
 
     await callback.answer()
 
 
-@router.message(
-    AdminScheduleStates
-    .searching_subscription_user
-)
+@router.message(AdminScheduleStates.searching_subscription_user)
 async def admin_subscription_search_handler(
     message: Message,
     state: FSMContext,
 ) -> None:
-    if not is_admin(
-        message.from_user.id
-    ):
+    if not is_admin(message.from_user.id):
         await state.clear()
         return
 
-    value = (
-        message.text or ""
-    ).strip()
+    value = (message.text or "").strip()
 
     if not value:
         await message.answer(
-            "❌ Введи Telegram ID "
-            "или username.",
-            reply_markup=(
-                get_subscription_confirm_keyboard(
-                    show_confirm=False
-                )
-            ),
+            "❌ Введи Telegram ID или username.",
+            reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
         )
         return
 
-    if (
-        not value.isdigit()
-        and not value.startswith("@")
-    ):
+    if not value.isdigit() and not value.startswith("@"):
         await message.answer(
             text=(
                 "❌ <b>Username нужно вводить "
@@ -135,17 +109,11 @@ async def admin_subscription_search_handler(
                 "<code>@username</code>\n\n"
                 "Либо отправь Telegram ID."
             ),
-            reply_markup=(
-                get_subscription_confirm_keyboard(
-                    show_confirm=False
-                )
-            ),
+            reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
         )
         return
 
-    users = await search_users(
-        value
-    )
+    users = await search_users(value)
 
     if not users:
         await message.answer(
@@ -155,35 +123,21 @@ async def admin_subscription_search_handler(
                 "Проверь Telegram ID "
                 "или username и попробуй ещё раз."
             ),
-            reply_markup=(
-                get_subscription_confirm_keyboard(
-                    show_confirm=False
-                )
-            ),
+            reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
         )
         return
 
-    await state.set_state(
-        AdminScheduleStates
-        .choosing_subscription_user
-    )
+    await state.set_state(AdminScheduleStates.choosing_subscription_user)
 
     await message.answer(
         text="Выбери пользователя:",
-        reply_markup=(
-            get_subscription_users_keyboard(
-                users
-            )
-        ),
+        reply_markup=(get_subscription_users_keyboard(users)),
     )
 
 
 @router.callback_query(
-    AdminScheduleStates
-    .choosing_subscription_user,
-    F.data.startswith(
-        "admin:sub:user:"
-    ),
+    AdminScheduleStates.choosing_subscription_user,
+    F.data.startswith("admin:sub:user:"),
 )
 async def admin_subscription_user_handler(
     callback: CallbackQuery,
@@ -204,19 +158,15 @@ async def admin_subscription_user_handler(
         )
         return
 
-    await state.update_data(
-        subscription_user_id=user_id
-    )
+    await state.update_data(subscription_user_id=user_id)
 
     data = await state.get_data()
 
-    course_slug = data.get(
-        "subscription_course_slug"
-    )
+    course_slug = data.get("subscription_course_slug")
 
     if not isinstance(
-            course_slug,
-            str,
+        course_slug,
+        str,
     ):
         await state.clear()
 
@@ -226,10 +176,7 @@ async def admin_subscription_user_handler(
         )
         return
 
-    await state.set_state(
-        AdminScheduleStates
-        .waiting_for_subscription_days
-    )
+    await state.set_state(AdminScheduleStates.waiting_for_subscription_days)
 
     await callback.message.edit_text(
         text=(
@@ -241,33 +188,22 @@ async def admin_subscription_user_handler(
             "Отправь число, например:\n"
             "<code>30</code>"
         ),
-        reply_markup=(
-            get_subscription_confirm_keyboard(
-                show_confirm=False
-            )
-        ),
+        reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
     )
 
     await callback.answer()
 
 
-@router.message(
-    AdminScheduleStates
-    .waiting_for_subscription_days
-)
+@router.message(AdminScheduleStates.waiting_for_subscription_days)
 async def admin_subscription_days_handler(
     message: Message,
     state: FSMContext,
 ) -> None:
-    if not is_admin(
-        message.from_user.id
-    ):
+    if not is_admin(message.from_user.id):
         await state.clear()
         return
 
-    value = (
-        message.text or ""
-    ).strip()
+    value = (message.text or "").strip()
 
     try:
         days = int(value)
@@ -275,72 +211,45 @@ async def admin_subscription_days_handler(
     except ValueError:
         await message.answer(
             "❌ Введи целое число.",
-            reply_markup=(
-                get_subscription_confirm_keyboard(
-                    show_confirm=False
-                )
-            ),
+            reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
         )
         return
 
     if days <= 0:
         await message.answer(
-            "❌ Количество дней должно "
-            "быть больше 0.",
-            reply_markup=(
-                get_subscription_confirm_keyboard(
-                    show_confirm=False
-                )
-            ),
+            "❌ Количество дней должно быть больше 0.",
+            reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
         )
         return
 
     if days > MAX_ADMIN_SUBSCRIPTION_DAYS:
         await message.answer(
             text=(
-                    "❌ Нельзя выдать подписку "
-                    f"больше чем на "
-                    f"{MAX_ADMIN_SUBSCRIPTION_DAYS} дней."
+                "❌ Нельзя выдать подписку "
+                f"больше чем на "
+                f"{MAX_ADMIN_SUBSCRIPTION_DAYS} дней."
             ),
-            reply_markup=(
-                get_subscription_confirm_keyboard(
-                    show_confirm=False
-                )
-            ),
+            reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
         )
         return
 
     await state.update_data(
         subscription_days=days,
-        subscription_idempotency_key=(
-            uuid4().hex
-        ),
+        subscription_idempotency_key=(uuid4().hex),
     )
 
     data = await state.get_data()
 
-    course_slug = data.get(
-        "subscription_course_slug"
-    )
-    user_id = data.get(
-        "subscription_user_id"
-    )
+    course_slug = data.get("subscription_course_slug")
+    user_id = data.get("subscription_user_id")
 
-    if (
-            not isinstance(course_slug, str)
-            or not isinstance(user_id, int)
-    ):
+    if not isinstance(course_slug, str) or not isinstance(user_id, int):
         await state.clear()
 
-        await message.answer(
-            "Контекст выдачи подписки потерян."
-        )
+        await message.answer("Контекст выдачи подписки потерян.")
         return
 
-    await state.set_state(
-        AdminScheduleStates
-        .confirming_subscription
-    )
+    await state.set_state(AdminScheduleStates.confirming_subscription)
 
     await message.answer(
         text=(
@@ -351,9 +260,7 @@ async def admin_subscription_days_handler(
             f"Срок: <b>{days} дней</b>\n\n"
             "Выдать / продлить подписку?"
         ),
-        reply_markup=(
-            get_subscription_confirm_keyboard()
-        ),
+        reply_markup=(get_subscription_confirm_keyboard()),
     )
 
 
@@ -370,18 +277,10 @@ async def admin_subscription_confirm_handler(
 
     data = await state.get_data()
 
-    user_id = data.get(
-        "subscription_user_id"
-    )
-    course_slug = data.get(
-        "subscription_course_slug"
-    )
-    days = data.get(
-        "subscription_days"
-    )
-    idempotency_key = data.get(
-        "subscription_idempotency_key"
-    )
+    user_id = data.get("subscription_user_id")
+    course_slug = data.get("subscription_course_slug")
+    days = data.get("subscription_days")
+    idempotency_key = data.get("subscription_idempotency_key")
 
     if (
         not isinstance(user_id, int)
@@ -398,23 +297,18 @@ async def admin_subscription_confirm_handler(
         await state.clear()
 
         await callback.answer(
-            "Операция устарела. "
-            "Начни выдачу подписки заново.",
+            "Операция устарела. Начни выдачу подписки заново.",
             show_alert=True,
         )
         return
 
     try:
-        result = (
-            await activate_or_extend_subscription_by_slug(
-                user_id=user_id,
-                course_slug=course_slug,
-                days=days,
-                actor_telegram_id=(
-                    callback.from_user.id
-                ),
-                idempotency_key=idempotency_key,
-            )
+        result = await activate_or_extend_subscription_by_slug(
+            user_id=user_id,
+            course_slug=course_slug,
+            days=days,
+            actor_telegram_id=(callback.from_user.id),
+            idempotency_key=idempotency_key,
         )
 
     except AdminSubscriptionError as error:
@@ -428,9 +322,7 @@ async def admin_subscription_confirm_handler(
 
     await state.clear()
 
-    course = await get_course_by_slug(
-        course_slug
-    )
+    course = await get_course_by_slug(course_slug)
 
     if course is None:
         await callback.answer(
@@ -453,18 +345,14 @@ async def admin_subscription_confirm_handler(
         ),
         reply_markup=get_admin_menu_keyboard(
             course_slug=course.slug,
-            requires_subscription=(
-                course.requires_subscription
-            ),
+            requires_subscription=(course.requires_subscription),
         ),
     )
 
     await callback.answer()
 
 
-@router.callback_query(
-    F.data == "admin:sub:cancel"
-)
+@router.callback_query(F.data == "admin:sub:cancel")
 async def admin_subscription_cancel_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -474,28 +362,20 @@ async def admin_subscription_cancel_handler(
 
     data = await state.get_data()
 
-    course_slug = data.get(
-        "subscription_course_slug"
-    )
+    course_slug = data.get("subscription_course_slug")
 
     await state.clear()
 
     if course_slug is None:
-        await callback.message.edit_text(
-            "❌ Выдача подписки отменена."
-        )
+        await callback.message.edit_text("❌ Выдача подписки отменена.")
 
         await callback.answer()
         return
 
-    course = await get_course_by_slug(
-        course_slug
-    )
+    course = await get_course_by_slug(course_slug)
 
     if course is None:
-        await callback.message.edit_text(
-            "❌ Выдача подписки отменена."
-        )
+        await callback.message.edit_text("❌ Выдача подписки отменена.")
 
         await callback.answer()
         return
@@ -513,9 +393,7 @@ async def admin_subscription_cancel_handler(
         reply_markup=(
             get_admin_menu_keyboard(
                 course_slug=course.slug,
-                requires_subscription=(
-                    course.requires_subscription
-                ),
+                requires_subscription=(course.requires_subscription),
             )
         ),
     )

@@ -25,45 +25,26 @@ async def run_publishing_scheduler(
 ) -> None:
     while True:
         try:
-            now = datetime.now(
-                timezone.utc
-            )
+            now = datetime.now(timezone.utc)
 
-            stuck_before = (
-                    now
-                    - timedelta(
-                minutes=STUCK_AFTER_MINUTES
-            )
-            )
+            stuck_before = now - timedelta(minutes=STUCK_AFTER_MINUTES)
 
             async with async_session_factory() as session:
-                repository = (
-                    ScheduledPostRepository(
-                        session
-                    )
-                )
+                repository = ScheduledPostRepository(session)
 
-                recovered = await repository.recover_stuck(
-                    before=stuck_before
-                )
+                recovered = await repository.recover_stuck(before=stuck_before)
 
                 if recovered > 0:
                     logger.warning(
-                        "Marked %s stuck posts "
-                        "for manual review",
+                        "Marked %s stuck posts for manual review",
                         recovered,
                     )
 
                 await session.commit()
 
-                posts = await repository.get_due(
-                    now
-                )
+                posts = await repository.get_due(now)
 
-                post_ids = [
-                    post.id
-                    for post in posts
-                ]
+                post_ids = [post.id for post in posts]
 
             for post_id in post_ids:
                 await publish_scheduled_post(
@@ -75,10 +56,6 @@ async def run_publishing_scheduler(
             raise
 
         except Exception:
-            logger.exception(
-                "Publishing scheduler failed"
-            )
+            logger.exception("Publishing scheduler failed")
 
-        await asyncio.sleep(
-            CHECK_INTERVAL_SECONDS
-        )
+        await asyncio.sleep(CHECK_INTERVAL_SECONDS)

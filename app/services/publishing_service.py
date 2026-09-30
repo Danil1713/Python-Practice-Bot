@@ -31,16 +31,10 @@ async def publish_scheduled_post(
     bot: Bot,
 ) -> bool:
     async with async_session_factory() as session:
-        post_repository = ScheduledPostRepository(
-            session
-        )
-        course_repository = CourseRepository(
-            session
-        )
+        post_repository = ScheduledPostRepository(session)
+        course_repository = CourseRepository(session)
 
-        claimed = await post_repository.claim_scheduled(
-            post_id
-        )
+        claimed = await post_repository.claim_scheduled(post_id)
 
         if not claimed:
             await session.rollback()
@@ -48,16 +42,12 @@ async def publish_scheduled_post(
 
         await session.commit()
 
-        post = await post_repository.get_by_id(
-            post_id
-        )
+        post = await post_repository.get_by_id(post_id)
 
         if post is None:
             return False
 
-        course = await course_repository.get_by_id(
-            post.course_id
-        )
+        course = await course_repository.get_by_id(post.course_id)
 
         if course is None:
             await post_repository.mark_failed(
@@ -79,14 +69,11 @@ async def publish_scheduled_post(
         content = post.content
 
         try:
-            validate_telegram_post_content(
-                content
-            )
+            validate_telegram_post_content(content)
 
         except TelegramPostValidationError as error:
             logger.warning(
-                "Invalid scheduled post content "
-                "post_id=%s error=%s",
+                "Invalid scheduled post content post_id=%s error=%s",
                 post_id,
                 error,
             )
@@ -107,20 +94,15 @@ async def publish_scheduled_post(
 
     except Exception as error:
         logger.exception(
-            "Failed to publish scheduled post "
-            "post_id=%s channel_id=%s",
+            "Failed to publish scheduled post post_id=%s channel_id=%s",
             post_id,
             channel_id,
         )
 
         async with async_session_factory() as session:
-            repository = ScheduledPostRepository(
-                session
-            )
+            repository = ScheduledPostRepository(session)
 
-            post = await repository.get_by_id(
-                post_id
-            )
+            post = await repository.get_by_id(post_id)
 
             if post is not None:
                 await repository.mark_failed(
@@ -132,24 +114,14 @@ async def publish_scheduled_post(
 
         return False
 
-    published_at = datetime.now(
-        timezone.utc
-    )
+    published_at = datetime.now(timezone.utc)
 
     async with async_session_factory() as session:
-        post_repository = ScheduledPostRepository(
-            session
-        )
-        project_repository = ProjectRepository(
-            session
-        )
-        hint_repository = HintRepository(
-            session
-        )
+        post_repository = ScheduledPostRepository(session)
+        project_repository = ProjectRepository(session)
+        hint_repository = HintRepository(session)
 
-        post = await post_repository.get_by_id(
-            post_id
-        )
+        post = await post_repository.get_by_id(post_id)
 
         if post is None:
             return False
@@ -160,47 +132,30 @@ async def publish_scheduled_post(
             telegram_message_id=message.message_id,
         )
 
-        if (
-            post.post_type == "project"
-            and post.project_id is not None
-        ):
-            project = (
-                await project_repository.get_by_id(
-                    post.project_id
-                )
-            )
+        if post.post_type == "project" and post.project_id is not None:
+            project = await project_repository.get_by_id(post.project_id)
 
             if project is not None:
                 await project_repository.mark_published(
                     project=project,
                     published_at=published_at,
-                    telegram_message_id=(
-                        message.message_id
-                    ),
+                    telegram_message_id=(message.message_id),
                 )
 
-        elif (
-            post.post_type == "hint"
-            and post.hint_id is not None
-        ):
-            hint = await hint_repository.get_by_id(
-                post.hint_id
-            )
+        elif post.post_type == "hint" and post.hint_id is not None:
+            hint = await hint_repository.get_by_id(post.hint_id)
 
             if hint is not None:
                 await hint_repository.mark_published(
                     hint=hint,
                     published_at=published_at,
-                    telegram_message_id=(
-                        message.message_id
-                    ),
+                    telegram_message_id=(message.message_id),
                 )
 
         await session.commit()
 
     logger.info(
-        "Published scheduled post "
-        "post_id=%s channel_id=%s message_id=%s",
+        "Published scheduled post post_id=%s channel_id=%s message_id=%s",
         post_id,
         channel_id,
         message.message_id,

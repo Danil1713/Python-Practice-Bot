@@ -83,25 +83,19 @@ class SubscriptionEvent(Base):
         nullable=False,
     )
 
-    old_starts_at: Mapped[datetime | None] = (
-        mapped_column(
-            DateTime(timezone=True),
-            nullable=True,
-        )
+    old_starts_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
-    new_starts_at: Mapped[datetime] = (
-        mapped_column(
-            DateTime(timezone=True),
-            nullable=False,
-        )
+    new_starts_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
     )
 
-    old_ends_at: Mapped[datetime | None] = (
-        mapped_column(
-            DateTime(timezone=True),
-            nullable=True,
-        )
+    old_ends_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     new_ends_at: Mapped[datetime] = mapped_column(

@@ -27,13 +27,9 @@ from app.services.admin_subscription_service import (
 
 @pytest.mark.asyncio
 async def test_admin_subscription_grant_is_idempotent():
-    database_url = os.environ[
-        "DATABASE_URL"
-    ]
+    database_url = os.environ["DATABASE_URL"]
 
-    engine = create_async_engine(
-        database_url
-    )
+    engine = create_async_engine(database_url)
 
     session_factory = async_sessionmaker(
         bind=engine,
@@ -67,62 +63,41 @@ async def test_admin_subscription_grant_is_idempotent():
 
         operation_id = uuid4().hex
 
-        first_result = (
-            await activate_or_extend_subscription(
-                user_id=user_id,
-                course_id=course_id,
-                days=30,
-                actor_telegram_id=700000001,
-                idempotency_key=operation_id,
-            )
+        first_result = await activate_or_extend_subscription(
+            user_id=user_id,
+            course_id=course_id,
+            days=30,
+            actor_telegram_id=700000001,
+            idempotency_key=operation_id,
         )
 
-        second_result = (
-            await activate_or_extend_subscription(
-                user_id=user_id,
-                course_id=course_id,
-                days=30,
-                actor_telegram_id=700000001,
-                idempotency_key=operation_id,
-            )
+        second_result = await activate_or_extend_subscription(
+            user_id=user_id,
+            course_id=course_id,
+            days=30,
+            actor_telegram_id=700000001,
+            idempotency_key=operation_id,
         )
 
-        assert (
-            second_result.ends_at
-            == first_result.ends_at
-        )
+        assert second_result.ends_at == first_result.ends_at
 
         async with session_factory() as session:
             event_count = await session.scalar(
-                select(
-                    func.count(
-                        SubscriptionEvent.id
-                    )
-                ).where(
-                    SubscriptionEvent.idempotency_key
-                    == operation_id
+                select(func.count(SubscriptionEvent.id)).where(
+                    SubscriptionEvent.idempotency_key == operation_id
                 )
             )
 
-            subscription = (
-                await session.scalar(
-                    select(
-                        Subscription
-                    ).where(
-                        Subscription.user_id
-                        == user_id,
-                        Subscription.course_id
-                        == course_id,
-                    )
+            subscription = await session.scalar(
+                select(Subscription).where(
+                    Subscription.user_id == user_id,
+                    Subscription.course_id == course_id,
                 )
             )
 
             event = await session.scalar(
-                select(
-                    SubscriptionEvent
-                ).where(
-                    SubscriptionEvent.idempotency_key
-                    == operation_id
+                select(SubscriptionEvent).where(
+                    SubscriptionEvent.idempotency_key == operation_id
                 )
             )
 
@@ -131,22 +106,13 @@ async def test_admin_subscription_grant_is_idempotent():
 
             assert event_count == 1
 
-            assert (
-                subscription.ends_at
-                == first_result.ends_at
-            )
+            assert subscription.ends_at == first_result.ends_at
 
-            assert (
-                event.actor_telegram_id
-                == 700000001
-            )
+            assert event.actor_telegram_id == 700000001
 
             assert event.source == "admin"
 
-            assert (
-                event.reason
-                == "manual_admin_grant"
-            )
+            assert event.reason == "manual_admin_grant"
 
             assert event.days == 30
 
