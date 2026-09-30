@@ -26,6 +26,7 @@ class SubscriptionView:
     course_slug: str
     course_title: str
     requires_subscription: bool
+    has_channel: bool
 
     status: str
     starts_at: datetime | None
@@ -108,6 +109,10 @@ async def get_subscription_view(
                 course_slug=course.slug,
                 course_title=course.title,
                 requires_subscription=False,
+                has_channel=(
+                        course.telegram_channel_id
+                        is not None
+                ),
                 status="free",
                 starts_at=None,
                 ends_at=None,
@@ -126,6 +131,10 @@ async def get_subscription_view(
                 course_slug=course.slug,
                 course_title=course.title,
                 requires_subscription=True,
+                has_channel=(
+                        course.telegram_channel_id
+                        is not None
+                ),
                 status="inactive",
                 starts_at=None,
                 ends_at=None,
@@ -146,6 +155,10 @@ async def get_subscription_view(
             course_slug=course.slug,
             course_title=course.title,
             requires_subscription=True,
+            has_channel=(
+                    course.telegram_channel_id
+                    is not None
+            ),
             status=status,
             starts_at=subscription.starts_at,
             ends_at=subscription.ends_at,

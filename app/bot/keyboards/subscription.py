@@ -16,10 +16,25 @@ def get_subscription_keyboard(
     course_slug: str,
     *,
     can_pay: bool,
+    can_open_channel: bool = False,
     stars_price: int | None = None,
     admin_username: str | None = None,
 ) -> InlineKeyboardMarkup:
     rows = []
+
+    if can_open_channel:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="📢 Доступ к каналу",
+                    callback_data=build_callback_data(
+                        "subscription",
+                        "channel",
+                        course_slug,
+                    ),
+                )
+            ]
+        )
 
     if can_pay and stars_price is not None:
         rows.append(
@@ -152,4 +167,31 @@ def get_payment_support_keyboard(
 
     return InlineKeyboardMarkup(
         inline_keyboard=rows
+    )
+
+
+def get_channel_join_keyboard(
+    *,
+    invite_link: str,
+    course_slug: str,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📢 Отправить заявку",
+                    url=invite_link,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад к подписке",
+                    callback_data=build_callback_data(
+                        "menu",
+                        "subscription",
+                        course_slug,
+                    ),
+                )
+            ],
+        ]
     )

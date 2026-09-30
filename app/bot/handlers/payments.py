@@ -296,6 +296,7 @@ async def successful_payment_handler(
         reply_markup=get_subscription_keyboard(
             course_slug=processed.course_slug,
             can_pay=False,
+            can_open_channel=True,
         ),
     )
 

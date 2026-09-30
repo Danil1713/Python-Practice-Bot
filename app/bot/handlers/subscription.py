@@ -114,6 +114,10 @@ async def subscription_handler(
                     view.requires_subscription
                     and plan is not None
             ),
+            can_open_channel=(
+                    view.status == "active"
+                    and view.has_channel
+            ),
             stars_price=(
                 plan.stars_price
                 if plan is not None

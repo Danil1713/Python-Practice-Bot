@@ -58,3 +58,20 @@ class CourseRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def get_by_telegram_channel_id(
+            self,
+            telegram_channel_id: int,
+    ) -> Course | None:
+        statement = select(
+            Course
+        ).where(
+            Course.telegram_channel_id
+            == telegram_channel_id
+        )
+
+        result = await self.session.execute(
+            statement
+        )
+
+        return result.scalar_one_or_none()

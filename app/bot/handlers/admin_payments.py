@@ -305,6 +305,7 @@ async def admin_review_payment_retry_handler(
             reply_markup=get_subscription_keyboard(
                 course_slug=payment.course_slug,
                 can_pay=False,
+                can_open_channel=True,
             ),
         )
 
