@@ -1,5 +1,11 @@
 <div align="center">
 
+<img
+  src="assets/branding/python-practice-bot-avatar.png"
+  alt="Python Practice Bot"
+  width="220"
+>
+
 # 🤖 Python Practice Bot
 
 **Telegram-платформа для изучения Python через практические проекты, подсказки и AI-проверку решений.**
@@ -12,6 +18,7 @@
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-153%20passed-brightgreen)
+[![CI](https://github.com/Danil1713/Python-Practice-Bot/actions/workflows/ci.yml/badge.svg)](https://github.com/Danil1713/Python-Practice-Bot/actions/workflows/ci.yml)
 
 </div>
 
@@ -167,7 +174,14 @@ python_practice_bot/
 - Telegram-каналы для курсов;
 - права администратора у бота в используемых каналах.
 
-### 2. Настройка окружения
+### 2. Клонирование
+
+```bash
+git clone https://github.com/Danil1713/Python-Practice-Bot.git
+cd Python-Practice-Bot
+```
+
+### 3. Настройка окружения
 
 Создайте рабочий файл настроек:
 
@@ -195,7 +209,7 @@ APP_TIMEZONE=Europe/Moscow
 
 Файл `.env` содержит секретные данные и не должен попадать в Git.
 
-### 3. Запуск
+### 4. Запуск
 
 ```bash
 docker compose up -d --build
