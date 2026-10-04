@@ -150,6 +150,7 @@ python_practice_bot/
 ├── Dockerfile
 ├── pytest.ini
 ├── requirements.txt
+├── requirements-dev.txt
 └── ruff.toml
 ```
 
@@ -259,7 +260,7 @@ source .venv/bin/activate
 Установите зависимости:
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
 
 Запустите PostgreSQL и Redis:
