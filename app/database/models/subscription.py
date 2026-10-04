@@ -23,7 +23,7 @@ class Subscription(Base):
             name="uq_subscriptions_user_course",
         ),
         CheckConstraint(
-            "status IN ('active', 'cancelled')",
+            "status IN ('active', 'revoking', 'cancelled')",
             name="ck_subscriptions_status",
         ),
         CheckConstraint(

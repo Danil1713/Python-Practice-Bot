@@ -20,6 +20,9 @@ from app.services.channel_access_service import (
     create_course_join_request_link,
     get_course_by_channel_id,
 )
+from app.services.course_service import (
+    get_course_by_slug,
+)
 from app.services.subscription_service import (
     has_active_subscription,
 )
@@ -52,10 +55,19 @@ async def subscription_channel_handler(
     ):
         return
 
+    course = await get_course_by_slug(course_slug)
+
+    if course is None:
+        await callback.answer(
+            "Уровень не найден.",
+            show_alert=True,
+        )
+        return
+
     try:
         invite_link = await create_course_join_request_link(
             bot=bot,
-            telegram_user_id=(callback.from_user.id),
+            telegram_user_id=callback.from_user.id,
             course_slug=course_slug,
         )
 
@@ -66,20 +78,25 @@ async def subscription_channel_handler(
         )
         return
 
+    if course.requires_subscription:
+        access_note = "Бот автоматически проверит твою подписку и подтвердит заявку."
+
+    else:
+        access_note = "Бот автоматически подтвердит заявку."
+
     await callback.message.answer(
         text=(
             "📢 <b>Доступ к каналу</b>\n\n"
             "Нажми кнопку ниже и отправь "
             "заявку на вступление.\n\n"
-            "Бот автоматически проверит "
-            "твою подписку и подтвердит "
-            "заявку.\n\n"
+            f"{access_note}\n\n"
             "Ссылка действует ограниченное "
             "время."
         ),
         reply_markup=get_channel_join_keyboard(
             invite_link=invite_link,
             course_slug=course_slug,
+            requires_subscription=course.requires_subscription,
         ),
     )
 

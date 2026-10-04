@@ -44,7 +44,9 @@ class AdminUserItem:
 @dataclass(frozen=True)
 class SubscriptionResult:
     user_id: int
+    telegram_user_id: int
     course_id: int
+    course_title: str
     starts_at: datetime
     ends_at: datetime
     status: str
@@ -119,7 +121,9 @@ async def activate_or_extend_subscription(
 
         return SubscriptionResult(
             user_id=user.id,
+            telegram_user_id=user.telegram_id,
             course_id=course.id,
+            course_title=course.title,
             starts_at=subscription.starts_at,
             ends_at=subscription.ends_at,
             status=subscription.status,

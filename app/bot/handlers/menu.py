@@ -106,6 +106,7 @@ async def back_to_menu_handler(
         reply_markup=get_main_menu_keyboard(
             course_slug=course.slug,
             requires_subscription=course.requires_subscription,
+            has_channel=(course.telegram_channel_id is not None),
             is_admin_user=is_admin(callback.from_user.id),
         ),
     )

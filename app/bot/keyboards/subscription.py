@@ -141,18 +141,26 @@ def get_payment_support_keyboard(
     ]
 
     if course_slug is not None:
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text="⬅️ Назад",
-                    callback_data=build_callback_data(
-                        "menu",
-                        "subscription",
-                        course_slug,
-                    ),
-                )
-            ]
+        back_text = "⬅️ Назад к подписке"
+
+        back_callback_data = build_callback_data(
+            "menu",
+            "subscription",
+            course_slug,
         )
+
+    else:
+        back_text = "⬅️ К выбору уровня"
+        back_callback_data = "nav:courses"
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data=back_callback_data,
+            )
+        ]
+    )
 
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -161,7 +169,26 @@ def get_channel_join_keyboard(
     *,
     invite_link: str,
     course_slug: str,
+    requires_subscription: bool,
 ) -> InlineKeyboardMarkup:
+    if requires_subscription:
+        back_text = "⬅️ Назад к подписке"
+
+        back_callback_data = build_callback_data(
+            "menu",
+            "subscription",
+            course_slug,
+        )
+
+    else:
+        back_text = "⬅️ Назад к меню"
+
+        back_callback_data = build_callback_data(
+            "nav",
+            "menu",
+            course_slug,
+        )
+
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -172,12 +199,8 @@ def get_channel_join_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="⬅️ Назад к подписке",
-                    callback_data=build_callback_data(
-                        "menu",
-                        "subscription",
-                        course_slug,
-                    ),
+                    text=back_text,
+                    callback_data=back_callback_data,
                 )
             ],
         ]

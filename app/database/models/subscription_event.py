@@ -48,9 +48,9 @@ class SubscriptionEvent(Base):
         index=True,
     )
 
-    actor_telegram_id: Mapped[int] = mapped_column(
+    actor_telegram_id: Mapped[int | None] = mapped_column(
         BigInteger,
-        nullable=False,
+        nullable=True,
     )
 
     event_type: Mapped[str] = mapped_column(

@@ -1,4 +1,6 @@
 import os
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -12,6 +14,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.bot.handlers import admin_subscriptions
 from app.database.models.course import Course
 from app.database.models.subscription import (
     Subscription,
@@ -81,6 +84,12 @@ async def test_admin_subscription_grant_is_idempotent():
 
         assert second_result.ends_at == first_result.ends_at
 
+        assert first_result.telegram_user_id == 900000201
+        assert first_result.course_title == "Admin audit course"
+
+        assert second_result.telegram_user_id == 900000201
+        assert second_result.course_title == "Admin audit course"
+
         async with session_factory() as session:
             event_count = await session.scalar(
                 select(func.count(SubscriptionEvent.id)).where(
@@ -118,3 +127,56 @@ async def test_admin_subscription_grant_is_idempotent():
 
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("text", "expected_error"),
+    [
+        (
+            "не число",
+            "Введи целое число",
+        ),
+        (
+            "0",
+            "должно быть больше 0",
+        ),
+        (
+            str(admin_subscriptions.MAX_ADMIN_SUBSCRIPTION_DAYS + 1),
+            "Нельзя выдать подписку",
+        ),
+    ],
+)
+async def test_invalid_subscription_days_explain_retry(
+    monkeypatch,
+    text,
+    expected_error,
+):
+    monkeypatch.setattr(
+        admin_subscriptions,
+        "is_admin",
+        lambda user_id: True,
+    )
+
+    message = SimpleNamespace(
+        from_user=SimpleNamespace(id=1),
+        text=text,
+        answer=AsyncMock(),
+    )
+
+    state = AsyncMock()
+
+    await admin_subscriptions.admin_subscription_days_handler(
+        message,
+        state,
+    )
+
+    answer = message.answer.await_args
+
+    assert expected_error in answer.kwargs["text"]
+    assert "Попробуй ещё раз" in answer.kwargs["text"]
+    assert "Бот продолжает ждать" in answer.kwargs["text"]
+
+    state.clear.assert_not_awaited()
+    state.update_data.assert_not_awaited()
+    state.set_state.assert_not_awaited()

@@ -35,7 +35,7 @@ class SubscriptionEventRepository:
         subscription_id: int,
         user_id: int,
         course_id: int,
-        actor_telegram_id: int,
+        actor_telegram_id: int | None,
         event_type: str,
         source: str,
         reason: str,

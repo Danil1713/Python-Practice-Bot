@@ -6,6 +6,7 @@ from app.bot.callbacks import build_callback_data
 def get_main_menu_keyboard(
     course_slug: str,
     requires_subscription: bool = True,
+    has_channel: bool = False,
     is_admin_user: bool = False,
 ) -> InlineKeyboardMarkup:
     buttons = [
@@ -47,6 +48,20 @@ def get_main_menu_keyboard(
                     callback_data=build_callback_data(
                         "menu",
                         "subscription",
+                        course_slug,
+                    ),
+                )
+            ]
+        )
+
+    elif has_channel:
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    text="📢 Доступ к каналу",
+                    callback_data=build_callback_data(
+                        "subscription",
+                        "channel",
                         course_slug,
                     ),
                 )

@@ -1,6 +1,14 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -8,6 +16,13 @@ from app.database.base import Base
 
 class Course(Base):
     __tablename__ = "courses"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "telegram_channel_id",
+            name="uq_courses_telegram_channel_id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

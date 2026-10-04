@@ -1,6 +1,11 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import (
+    and_,
+    func,
+    or_,
+    select,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.subscription import (
@@ -83,3 +88,72 @@ class SubscriptionRepository:
         )
 
         await self.session.execute(statement)
+
+    async def get_revocation_candidate_ids(
+        self,
+        *,
+        now: datetime,
+        stale_before: datetime,
+        limit: int = 50,
+    ) -> list[int]:
+        statement = (
+            select(Subscription.id)
+            .where(
+                or_(
+                    and_(
+                        Subscription.status == "active",
+                        Subscription.ends_at <= now,
+                    ),
+                    and_(
+                        Subscription.status == "revoking",
+                        Subscription.updated_at <= stale_before,
+                    ),
+                )
+            )
+            .order_by(Subscription.ends_at.asc())
+            .limit(limit)
+        )
+
+        result = await self.session.execute(statement)
+
+        return list(result.scalars().all())
+
+    async def get_by_id_for_update(
+        self,
+        subscription_id: int,
+    ) -> Subscription | None:
+        statement = (
+            select(Subscription)
+            .where(Subscription.id == subscription_id)
+            .with_for_update()
+        )
+
+        result = await self.session.execute(statement)
+
+        return result.scalar_one_or_none()
+
+    async def mark_revoking(
+        self,
+        subscription: Subscription,
+        started_at: datetime,
+    ) -> None:
+        subscription.status = "revoking"
+        subscription.updated_at = started_at
+
+        await self.session.flush()
+
+    async def restore_active(
+        self,
+        subscription: Subscription,
+    ) -> None:
+        subscription.status = "active"
+
+        await self.session.flush()
+
+    async def mark_cancelled(
+        self,
+        subscription: Subscription,
+    ) -> None:
+        subscription.status = "cancelled"
+
+        await self.session.flush()

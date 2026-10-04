@@ -1,7 +1,8 @@
+import logging
 from html import escape
 from uuid import uuid4
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
@@ -33,6 +34,8 @@ from app.services.admin_subscription_service import (
 from app.services.course_service import (
     get_course_by_slug,
 )
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -210,14 +213,23 @@ async def admin_subscription_days_handler(
 
     except ValueError:
         await message.answer(
-            "❌ Введи целое число.",
+            text=(
+                "❌ Введи целое число.\n\n"
+                "Попробуй ещё раз.\n"
+                "Бот продолжает ждать количество дней."
+            ),
             reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
         )
+
         return
 
     if days <= 0:
         await message.answer(
-            "❌ Количество дней должно быть больше 0.",
+            text=(
+                "❌ Количество дней должно быть больше 0.\n\n"
+                "Попробуй ещё раз.\n"
+                "Бот продолжает ждать количество дней."
+            ),
             reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
         )
         return
@@ -227,7 +239,9 @@ async def admin_subscription_days_handler(
             text=(
                 "❌ Нельзя выдать подписку "
                 f"больше чем на "
-                f"{MAX_ADMIN_SUBSCRIPTION_DAYS} дней."
+                f"{MAX_ADMIN_SUBSCRIPTION_DAYS} дней.\n\n"
+                "Попробуй ещё раз.\n"
+                "Бот продолжает ждать количество дней."
             ),
             reply_markup=(get_subscription_confirm_keyboard(show_confirm=False)),
         )
@@ -271,6 +285,7 @@ async def admin_subscription_days_handler(
 async def admin_subscription_confirm_handler(
     callback: CallbackQuery,
     state: FSMContext,
+    bot: Bot,
 ) -> None:
     if not await check_admin(callback):
         return
@@ -321,6 +336,32 @@ async def admin_subscription_confirm_handler(
         return
 
     await state.clear()
+
+    try:
+        await bot.send_message(
+            chat_id=result.telegram_user_id,
+            text=(
+                "✅ <b>Подписка обновлена.</b>\n\n"
+                f"Курс: <b>"
+                f"{escape(result.course_title)}"
+                f"</b>\n"
+                f"Доступ активен до: <b>"
+                f"{format_admin_datetime(result.ends_at)}"
+                f"</b>\n\n"
+                "Можно продолжить обучение."
+            ),
+        )
+
+    except Exception:
+        logger.exception(
+            "Could not notify user about admin subscription update "
+            "user_id=%s "
+            "telegram_user_id=%s "
+            "course_slug=%s",
+            result.user_id,
+            result.telegram_user_id,
+            course_slug,
+        )
 
     course = await get_course_by_slug(course_slug)
 
