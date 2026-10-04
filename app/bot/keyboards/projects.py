@@ -122,21 +122,6 @@ def get_projects_keyboard(
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-    buttons.append(
-        [
-            InlineKeyboardButton(
-                text="⬅️ Назад",
-                callback_data=build_callback_data(
-                    "nav",
-                    "menu",
-                    course_slug,
-                ),
-            )
-        ]
-    )
-
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
 
 def get_project_card_keyboard(
     project_id: int,

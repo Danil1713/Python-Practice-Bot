@@ -10,6 +10,12 @@ ACTIVE_STATUSES = (
     "checking",
 )
 
+COUNTED_AI_CHECK_STATUSES = (
+    "passed",
+    "failed",
+    "review",
+)
+
 
 class AttemptRepository:
     def __init__(
@@ -343,6 +349,7 @@ class AttemptRepository:
             Attempt.user_id == user_id,
             Attempt.project_id == project_id,
             Attempt.ai_model.is_not(None),
+            Attempt.status.in_(COUNTED_AI_CHECK_STATUSES),
         )
 
         result = await self.session.execute(statement)

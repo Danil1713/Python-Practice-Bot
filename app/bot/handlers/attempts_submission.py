@@ -9,6 +9,9 @@ from aiogram.types import CallbackQuery, Message
 from app.bot.callbacks import (
     parse_callback_int,
 )
+from app.bot.handlers.course_context import (
+    check_current_course,
+)
 from app.bot.keyboards.attempts import (
     get_ai_review_consent_keyboard,
     get_cancel_submission_keyboard,
@@ -51,6 +54,17 @@ logger = logging.getLogger(__name__)
 MAX_SOLUTION_FILE_SIZE = 200 * 1024
 
 
+def build_solution_file_retry_text(
+    error_text: str,
+) -> str:
+    return (
+        f"{error_text}\n\n"
+        "Отправь подходящий Python-файл "
+        "<code>.py</code> ещё раз.\n"
+        "Бот продолжает ждать файл."
+    )
+
+
 @router.callback_query(F.data.startswith("attempt:ai-consent:"))
 async def ai_review_consent_handler(
     callback: CallbackQuery,
@@ -78,6 +92,12 @@ async def ai_review_consent_handler(
             "Проект не найден.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+        callback,
+        project.course_slug,
+    ):
         return
 
     active = await has_active_subscription(
@@ -128,7 +148,10 @@ async def ai_review_consent_handler(
 
     await state.set_state(SolutionStates.waiting_for_file)
 
-    await state.update_data(project_id=project.id)
+    await state.update_data(
+        project_id=project.id,
+        course_slug=project.course_slug,
+    )
 
     await callback.message.edit_text(
         text=(
@@ -174,6 +197,12 @@ async def start_submission_handler(
             "Проект не найден.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+        callback,
+        project.course_slug,
+    ):
         return
 
     if project.status == "locked":
@@ -252,7 +281,10 @@ async def start_submission_handler(
 
     await state.set_state(SolutionStates.waiting_for_file)
 
-    await state.update_data(project_id=project.id)
+    await state.update_data(
+        project_id=project.id,
+        course_slug=project.course_slug,
+    )
 
     await callback.message.edit_text(
         text=(
@@ -288,8 +320,6 @@ async def cancel_submission_handler(
         )
         return
 
-    await state.clear()
-
     project = await get_project_card(
         telegram_user_id=callback.from_user.id,
         project_id=project_id,
@@ -301,6 +331,14 @@ async def cancel_submission_handler(
             show_alert=True,
         )
         return
+
+    if not await check_current_course(
+        callback,
+        project.course_slug,
+    ):
+        return
+
+    await state.clear()
 
     active = await has_active_subscription(
         telegram_user_id=callback.from_user.id,
@@ -340,23 +378,42 @@ async def solution_file_handler(
 
     project_id = data.get("project_id")
 
+    course_slug = data.get("course_slug")
+
     if not isinstance(project_id, int):
         await state.clear()
 
         await message.answer("Не удалось определить проект. Выбери его заново.")
         return
 
+    if not isinstance(course_slug, str):
+        await state.clear()
+
+        await message.answer("Не удалось определить уровень. Выбери Project заново.")
+        return
+
+    if not await check_current_course(
+        message,
+        course_slug,
+    ):
+        await state.clear()
+        return
+
     if not filename.lower().endswith(".py"):
         await message.answer(
-            "❌ Нужен файл с расширением <code>.py</code>.",
-            reply_markup=get_cancel_submission_keyboard(project_id),
+            text=build_solution_file_retry_text(
+                "❌ Нужен файл с расширением <code>.py</code>."
+            ),
+            reply_markup=(get_cancel_submission_keyboard(project_id)),
         )
         return
 
     if document.file_size is not None and document.file_size > MAX_SOLUTION_FILE_SIZE:
         await message.answer(
-            "❌ Файл слишком большой.\nМаксимальный размер: 200 KB.",
-            reply_markup=get_cancel_submission_keyboard(project_id),
+            text=build_solution_file_retry_text(
+                "❌ Файл слишком большой.\nМаксимальный размер: 200 KB."
+            ),
+            reply_markup=(get_cancel_submission_keyboard(project_id)),
         )
         return
 
@@ -415,7 +472,8 @@ async def solution_file_handler(
         )
 
         await message.answer(
-            "⚠️ Не удалось скачать файл.\n\nПопробуй отправить его ещё раз."
+            text=build_solution_file_retry_text("⚠️ Не удалось скачать файл."),
+            reply_markup=(get_cancel_submission_keyboard(project_id)),
         )
         return
 
@@ -433,7 +491,12 @@ async def solution_file_handler(
             len(raw_code),
         )
 
-        await message.answer("❌ Файл слишком большой.\nМаксимальный размер: 200 KB.")
+        await message.answer(
+            text=build_solution_file_retry_text(
+                "❌ Файл слишком большой.\nМаксимальный размер: 200 KB."
+            ),
+            reply_markup=(get_cancel_submission_keyboard(project_id)),
+        )
         return
 
     try:
@@ -441,15 +504,17 @@ async def solution_file_handler(
 
     except UnicodeDecodeError:
         await message.answer(
-            "❌ Не удалось прочитать файл.\nСохрани его в UTF-8 и отправь снова.",
-            reply_markup=get_cancel_submission_keyboard(project_id),
+            text=build_solution_file_retry_text(
+                "❌ Не удалось прочитать файл.\nСохрани его в кодировке UTF-8."
+            ),
+            reply_markup=(get_cancel_submission_keyboard(project_id)),
         )
         return
 
     if not source_code.strip():
         await message.answer(
-            "❌ Файл пустой.",
-            reply_markup=get_cancel_submission_keyboard(project_id),
+            text=build_solution_file_retry_text("❌ Файл пустой."),
+            reply_markup=(get_cancel_submission_keyboard(project_id)),
         )
         return
 
@@ -589,13 +654,28 @@ async def wrong_solution_message_handler(
 
     project_id = data.get("project_id")
 
+    course_slug = data.get("course_slug")
+
     if not isinstance(project_id, int):
         await state.clear()
 
         await message.answer("Не удалось определить проект. Выбери его заново.")
         return
 
+    if not isinstance(course_slug, str):
+        await state.clear()
+
+        await message.answer("Не удалось определить уровень. Выбери Project заново.")
+        return
+
+    if not await check_current_course(
+        message,
+        course_slug,
+    ):
+        await state.clear()
+        return
+
     await message.answer(
-        "Отправь Python-файл <code>.py</code> или нажми «Отмена».",
-        reply_markup=get_cancel_submission_keyboard(project_id),
+        text=build_solution_file_retry_text("❌ Нужно отправить именно файл."),
+        reply_markup=(get_cancel_submission_keyboard(project_id)),
     )

@@ -17,6 +17,9 @@ from app.database.models.user import User
 from app.database.repositories.attempt_repository import (
     AttemptRepository,
 )
+from app.services.attempt_service import (
+    get_attempt_detail,
+)
 
 
 @pytest.mark.asyncio
@@ -289,6 +292,177 @@ async def test_stuck_pending_attempt_without_status_message_is_recovered():
             assert attempt.error_message == (
                 "Не удалось подготовить Telegram-сообщение для результата проверки."
             )
+
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_attempt_detail_contains_course_slug():
+    database_url = os.environ["DATABASE_URL"]
+
+    engine = create_async_engine(database_url)
+
+    session_factory = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    try:
+        async with session_factory() as session:
+            course = Course(
+                slug="attempt_detail_course",
+                title="Attempt detail course",
+                requires_subscription=False,
+                is_active=True,
+            )
+
+            session.add(course)
+            await session.flush()
+
+            user = User(
+                telegram_id=900000004,
+                username="attempt_detail_user",
+                first_name="Test",
+            )
+
+            session.add(user)
+            await session.flush()
+
+            project = Project(
+                course_id=course.id,
+                number=1,
+                title="Attempt detail project",
+                max_xp=100,
+            )
+
+            session.add(project)
+            await session.flush()
+
+            attempt = Attempt(
+                user_id=user.id,
+                project_id=project.id,
+                attempt_number=1,
+                filename="solution.py",
+                source_code="print('test')",
+                status="passed",
+                xp_snapshot=100,
+            )
+
+            session.add(attempt)
+            await session.commit()
+
+            attempt_id = attempt.id
+            telegram_id = user.telegram_id
+
+        detail = await get_attempt_detail(
+            telegram_user_id=telegram_id,
+            attempt_id=attempt_id,
+        )
+
+        assert detail is not None
+        assert detail.course_slug == "attempt_detail_course"
+
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_ai_check_limit_ignores_provider_errors():
+    database_url = os.environ["DATABASE_URL"]
+
+    engine = create_async_engine(database_url)
+
+    session_factory = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    try:
+        async with session_factory() as session:
+            course = Course(
+                slug="ai_limit_provider_error_course",
+                title="AI limit provider error course",
+                requires_subscription=False,
+                is_active=True,
+            )
+
+            session.add(course)
+            await session.flush()
+
+            user = User(
+                telegram_id=900000005,
+                username="ai_limit_provider_error_user",
+                first_name="Test",
+            )
+
+            session.add(user)
+            await session.flush()
+
+            project = Project(
+                course_id=course.id,
+                number=1,
+                title="AI limit provider error project",
+                max_xp=100,
+            )
+
+            session.add(project)
+            await session.flush()
+
+            completed_ai_attempt = Attempt(
+                user_id=user.id,
+                project_id=project.id,
+                attempt_number=1,
+                filename="completed.py",
+                source_code="print('completed')",
+                status="failed",
+                xp_snapshot=100,
+                ai_model="test-model",
+                ai_result_json='{"verdict":"failed"}',
+            )
+
+            provider_error_attempt = Attempt(
+                user_id=user.id,
+                project_id=project.id,
+                attempt_number=2,
+                filename="provider_error.py",
+                source_code="print('provider error')",
+                status="error",
+                xp_snapshot=100,
+                ai_model="test-model",
+                error_message="AI provider unavailable",
+            )
+
+            local_check_attempt = Attempt(
+                user_id=user.id,
+                project_id=project.id,
+                attempt_number=3,
+                filename="local_check.py",
+                source_code="invalid syntax",
+                status="failed",
+                xp_snapshot=100,
+                ai_model=None,
+            )
+
+            session.add_all(
+                [
+                    completed_ai_attempt,
+                    provider_error_attempt,
+                    local_check_attempt,
+                ]
+            )
+            await session.commit()
+
+            repository = AttemptRepository(session)
+
+            used = await repository.count_ai_checks(
+                user_id=user.id,
+                project_id=project.id,
+            )
+
+            assert used == 1
 
     finally:
         await engine.dispose()

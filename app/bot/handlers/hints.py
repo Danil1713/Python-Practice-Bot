@@ -4,7 +4,11 @@ from aiogram.types import CallbackQuery
 from app.bot.callbacks import (
     parse_callback_int,
 )
+from app.bot.handlers.course_context import (
+    check_current_course,
+)
 from app.bot.keyboards.hints import (
+    get_hint_open_keyboard,
     get_hints_keyboard,
 )
 from app.services.hint_service import (
@@ -47,6 +51,12 @@ async def hints_list_handler(
             "Проект не найден.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+        callback,
+        project.course_slug,
+    ):
         return
 
     active = await has_active_subscription(
@@ -118,6 +128,12 @@ async def hint_open_handler(
         )
         return
 
+    if not await check_current_course(
+        callback,
+        view.course_slug,
+    ):
+        return
+
     active = await has_active_subscription(
         telegram_user_id=callback.from_user.id,
         course_slug=view.course_slug,
@@ -144,7 +160,12 @@ async def hint_open_handler(
         )
         return
 
-    await callback.answer(
-        "Открой подсказку из списка.",
-        show_alert=True,
+    await callback.message.edit_text(
+        text=("💡 <b>Подсказка опубликована.</b>\n\nОткрой её по кнопке ниже."),
+        reply_markup=get_hint_open_keyboard(
+            telegram_url=view.telegram_url,
+            project_id=view.project_id,
+        ),
     )
+
+    await callback.answer()

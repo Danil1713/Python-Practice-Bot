@@ -53,6 +53,7 @@ class HintListItem:
 @dataclass(frozen=True)
 class HintOpenView:
     id: int
+    project_id: int
     course_slug: str
     is_published: bool
     telegram_url: str | None
@@ -164,6 +165,7 @@ async def get_hint_open_view(
 
         return HintOpenView(
             id=hint.id,
+            project_id=project.id,
             course_slug=course.slug,
             is_published=(hint.published_at is not None),
             telegram_url=telegram_url,

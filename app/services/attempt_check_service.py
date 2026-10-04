@@ -204,7 +204,8 @@ async def _handle_ai_review_error(
             reply_markup=get_project_card_markup(
                 project,
                 course_slug=course.slug,
-                active_subscription=(active_subscription),
+                telegram_channel_id=course.telegram_channel_id,
+                active_subscription=active_subscription,
             ),
         )
 
@@ -342,7 +343,8 @@ async def _notify_attempt_result(
         reply_markup=get_project_card_markup(
             project,
             course_slug=course.slug,
-            active_subscription=(active_subscription),
+            telegram_channel_id=course.telegram_channel_id,
+            active_subscription=active_subscription,
         ),
     )
 
@@ -440,7 +442,8 @@ async def check_attempt(
                         get_project_card_markup(
                             project,
                             course_slug=course.slug,
-                            active_subscription=(active_subscription),
+                            telegram_channel_id=course.telegram_channel_id,
+                            active_subscription=active_subscription,
                         )
                     ),
                 )
@@ -510,7 +513,8 @@ async def check_attempt(
                             reply_markup=get_project_card_markup(
                                 project,
                                 course_slug=course.slug,
-                                active_subscription=(active_subscription),
+                                telegram_channel_id=course.telegram_channel_id,
+                                active_subscription=active_subscription,
                             ),
                         )
 

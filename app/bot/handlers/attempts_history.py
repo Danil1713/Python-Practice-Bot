@@ -6,6 +6,9 @@ from aiogram.types import CallbackQuery
 from app.bot.callbacks import (
     parse_callback_int,
 )
+from app.bot.handlers.course_context import (
+    check_current_course,
+)
 from app.bot.keyboards.attempts import (
     get_attempt_detail_keyboard,
     get_attempts_keyboard,
@@ -47,6 +50,12 @@ async def attempts_list_handler(
             "Проект не найден.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+        callback,
+        view.course_slug,
+    ):
         return
 
     if not view.attempts:
@@ -188,6 +197,12 @@ async def attempt_code_handler(
         )
         return
 
+    if not await check_current_course(
+        callback,
+        attempt.course_slug,
+    ):
+        return
+
     raw_code = attempt.source_code
 
     chunks = [
@@ -236,6 +251,12 @@ async def attempt_feedback_handler(
             "Попытка не найдена.",
             show_alert=True,
         )
+        return
+
+    if not await check_current_course(
+        callback,
+        attempt.course_slug,
+    ):
         return
 
     if attempt.status in (

@@ -68,6 +68,7 @@ class AttemptDetail:
     project_id: int
     project_number: int
     project_title: str
+    course_slug: str
 
     number: int
     filename: str
@@ -233,6 +234,7 @@ async def get_attempt_detail(
     async with async_session_factory() as session:
         user_repository = UserRepository(session)
         project_repository = ProjectRepository(session)
+        course_repository = CourseRepository(session)
         attempt_repository = AttemptRepository(session)
 
         user = await user_repository.get_by_telegram_id(telegram_user_id)
@@ -253,11 +255,17 @@ async def get_attempt_detail(
         if project is None:
             return None
 
+        course = await course_repository.get_by_id(project.course_id)
+
+        if course is None:
+            return None
+
         return AttemptDetail(
             id=attempt.id,
             project_id=project.id,
             project_number=project.number,
             project_title=project.title,
+            course_slug=course.slug,
             number=attempt.attempt_number,
             filename=attempt.filename,
             source_code=attempt.source_code,
