@@ -5,15 +5,15 @@ Revises: 7b3034dea638
 Create Date: 2026-09-13 14:21:31.816323
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '58639ae1ea3e'
-down_revision: Union[str, Sequence[str], None] = '7b3034dea638'
+revision: str = "58639ae1ea3e"
+down_revision: Union[str, Sequence[str], None] = "7b3034dea638"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -54,9 +54,7 @@ def upgrade() -> None:
         ["project_id"],
         unique=True,
         postgresql_where=sa.text(
-            "project_id IS NOT NULL "
-            "AND status IN "
-            "('scheduled', 'publishing')"
+            "project_id IS NOT NULL AND status IN ('scheduled', 'publishing')"
         ),
     )
 
@@ -66,9 +64,7 @@ def upgrade() -> None:
         ["hint_id"],
         unique=True,
         postgresql_where=sa.text(
-            "hint_id IS NOT NULL "
-            "AND status IN "
-            "('scheduled', 'publishing')"
+            "hint_id IS NOT NULL AND status IN ('scheduled', 'publishing')"
         ),
     )
 

@@ -7,10 +7,8 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config import get_database_url
+from app.database import models as database_models  # noqa: F401
 from app.database.base import Base
-
-import app.database.models
-
 
 config = context.config
 
@@ -75,9 +73,7 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
-    asyncio.run(
-        run_async_migrations()
-    )
+    asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():

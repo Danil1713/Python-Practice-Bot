@@ -5,15 +5,14 @@ Revises: 9b225f98165f
 Create Date: 2026-08-28 16:28:15.689982
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
-
-
-revision: str = 'fb786024feb7'
-down_revision: Union[str, Sequence[str], None] = '9b225f98165f'
+revision: str = "fb786024feb7"
+down_revision: Union[str, Sequence[str], None] = "9b225f98165f"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -58,10 +57,8 @@ def upgrade() -> None:
         server_default=None,
     )
 
+
 def downgrade() -> None:
     """Downgrade schema."""
-    op.execute(
-        sa.text("DELETE FROM courses WHERE slug = 'demo'")
-    )
-    op.drop_column('courses', 'requires_subscription')
-
+    op.execute(sa.text("DELETE FROM courses WHERE slug = 'demo'"))
+    op.drop_column("courses", "requires_subscription")

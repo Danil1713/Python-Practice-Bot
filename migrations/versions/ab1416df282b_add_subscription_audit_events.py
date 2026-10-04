@@ -5,15 +5,15 @@ Revises: cc1e6b595c1a
 Create Date: 2026-09-21 13:51:42.227391
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'ab1416df282b'
-down_revision: Union[str, Sequence[str], None] = 'cc1e6b595c1a'
+revision: str = "ab1416df282b"
+down_revision: Union[str, Sequence[str], None] = "cc1e6b595c1a"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -21,7 +21,6 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "subscription_events",
-
         sa.Column(
             "id",
             sa.Integer(),
@@ -108,7 +107,6 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-
         sa.ForeignKeyConstraint(
             ["subscription_id"],
             ["subscriptions.id"],
@@ -127,36 +125,28 @@ def upgrade() -> None:
     )
 
     op.create_index(
-        op.f(
-            "ix_subscription_events_subscription_id"
-        ),
+        op.f("ix_subscription_events_subscription_id"),
         "subscription_events",
         ["subscription_id"],
         unique=False,
     )
 
     op.create_index(
-        op.f(
-            "ix_subscription_events_user_id"
-        ),
+        op.f("ix_subscription_events_user_id"),
         "subscription_events",
         ["user_id"],
         unique=False,
     )
 
     op.create_index(
-        op.f(
-            "ix_subscription_events_course_id"
-        ),
+        op.f("ix_subscription_events_course_id"),
         "subscription_events",
         ["course_id"],
         unique=False,
     )
 
     op.create_index(
-        op.f(
-            "ix_subscription_events_idempotency_key"
-        ),
+        op.f("ix_subscription_events_idempotency_key"),
         "subscription_events",
         ["idempotency_key"],
         unique=True,
@@ -165,33 +155,23 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index(
-        op.f(
-            "ix_subscription_events_idempotency_key"
-        ),
+        op.f("ix_subscription_events_idempotency_key"),
         table_name="subscription_events",
     )
 
     op.drop_index(
-        op.f(
-            "ix_subscription_events_course_id"
-        ),
+        op.f("ix_subscription_events_course_id"),
         table_name="subscription_events",
     )
 
     op.drop_index(
-        op.f(
-            "ix_subscription_events_user_id"
-        ),
+        op.f("ix_subscription_events_user_id"),
         table_name="subscription_events",
     )
 
     op.drop_index(
-        op.f(
-            "ix_subscription_events_subscription_id"
-        ),
+        op.f("ix_subscription_events_subscription_id"),
         table_name="subscription_events",
     )
 
-    op.drop_table(
-        "subscription_events"
-    )
+    op.drop_table("subscription_events")

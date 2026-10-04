@@ -5,15 +5,14 @@ Revises: ab1416df282b
 Create Date: 2026-09-23 09:32:00.954042
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
-revision: str = '071bb6121074'
-down_revision: Union[str, Sequence[str], None] = 'ab1416df282b'
+revision: str = "071bb6121074"
+down_revision: Union[str, Sequence[str], None] = "ab1416df282b"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -22,11 +21,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_attempts_status",
         "attempts",
-        (
-            "status IN "
-            "('pending', 'checking', "
-            "'passed', 'failed', 'error')"
-        ),
+        ("status IN ('pending', 'checking', 'passed', 'failed', 'error')"),
     )
 
     op.create_check_constraint(
@@ -50,11 +45,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_payments_status",
         "payments",
-        (
-            "status IN "
-            "('pending', 'cancelled', "
-            "'review', 'succeeded')"
-        ),
+        ("status IN ('pending', 'cancelled', 'review', 'succeeded')"),
     )
 
     op.create_check_constraint(
@@ -78,20 +69,13 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_scheduled_posts_post_type",
         "scheduled_posts",
-        (
-            "post_type IN "
-            "('regular', 'project', 'hint')"
-        ),
+        ("post_type IN ('regular', 'project', 'hint')"),
     )
 
     op.create_check_constraint(
         "ck_scheduled_posts_status",
         "scheduled_posts",
-        (
-            "status IN "
-            "('scheduled', 'publishing', "
-            "'published', 'failed', 'cancelled')"
-        ),
+        ("status IN ('scheduled', 'publishing', 'published', 'failed', 'cancelled')"),
     )
 
     op.create_check_constraint(

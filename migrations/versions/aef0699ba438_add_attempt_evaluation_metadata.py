@@ -5,15 +5,15 @@ Revises: f432b04cd0eb
 Create Date: 2026-09-24 10:13:16.822848
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'aef0699ba438'
-down_revision: Union[str, Sequence[str], None] = 'f432b04cd0eb'
+revision: str = "aef0699ba438"
+down_revision: Union[str, Sequence[str], None] = "f432b04cd0eb"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -73,12 +73,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_attempts_status",
         "attempts",
-        (
-            "status IN "
-            "('pending', 'checking', "
-            "'passed', 'failed', "
-            "'review', 'error')"
-        ),
+        ("status IN ('pending', 'checking', 'passed', 'failed', 'review', 'error')"),
     )
 
 
@@ -100,11 +95,7 @@ def downgrade() -> None:
     op.create_check_constraint(
         "ck_attempts_status",
         "attempts",
-        (
-            "status IN "
-            "('pending', 'checking', "
-            "'passed', 'failed', 'error')"
-        ),
+        ("status IN ('pending', 'checking', 'passed', 'failed', 'error')"),
     )
 
     op.drop_column(

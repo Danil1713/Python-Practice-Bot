@@ -5,16 +5,15 @@ Revises: 3258dfb55987
 Create Date: 2026-09-10 09:44:54.115280
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '0816e7797b8e'
-down_revision: Union[str, Sequence[str], None] = '3258dfb55987'
+revision: str = "0816e7797b8e"
+down_revision: Union[str, Sequence[str], None] = "3258dfb55987"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -115,6 +114,4 @@ def downgrade() -> None:
     inspector = sa.inspect(bind)
 
     if inspector.has_table("xp_transactions"):
-        op.drop_table(
-            "xp_transactions"
-        )
+        op.drop_table("xp_transactions")
