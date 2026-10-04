@@ -170,7 +170,10 @@ def get_scheduled_post_keyboard(
         ]
     ]
 
-    if status == "scheduled":
+    if status in {
+        "scheduled",
+        "failed",
+    }:
         rows.append(
             [
                 InlineKeyboardButton(
@@ -194,21 +197,6 @@ def get_scheduled_post_keyboard(
             ]
         )
 
-    elif status == "failed":
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text="🕒 Перенести",
-                    callback_data=build_callback_data(
-                        "admin",
-                        "reschedule",
-                        post_id,
-                        course_slug,
-                    ),
-                )
-            ]
-        )
-
     rows.append(
         [
             InlineKeyboardButton(
@@ -223,6 +211,72 @@ def get_scheduled_post_keyboard(
     )
 
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def get_publish_post_confirm_keyboard(
+    post_id: int,
+    course_slug: str,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Да, опубликовать",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "publish",
+                        "confirm",
+                        post_id,
+                        course_slug,
+                    ),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Нет, вернуться",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "post",
+                        post_id,
+                        course_slug,
+                    ),
+                )
+            ],
+        ]
+    )
+
+
+def get_cancel_post_confirm_keyboard(
+    post_id: int,
+    course_slug: str,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Да, отменить",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "cancel",
+                        "confirm",
+                        post_id,
+                        course_slug,
+                    ),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Нет, вернуться",
+                    callback_data=build_callback_data(
+                        "admin",
+                        "post",
+                        post_id,
+                        course_slug,
+                    ),
+                )
+            ],
+        ]
+    )
 
 
 def get_admin_input_cancel_keyboard(

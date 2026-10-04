@@ -286,10 +286,11 @@ async def cancel_scheduled_post(
         if post is None:
             raise ScheduledPostNotFound()
 
-        if post.status != "scheduled":
-            raise ScheduledPostNotEditable(
-                "Можно отменить только запланированную публикацию."
-            )
+        if post.status not in {
+            "scheduled",
+            "failed",
+        }:
+            raise ScheduledPostNotEditable("Эту публикацию уже нельзя отменить.")
 
         await repository.cancel(post)
 

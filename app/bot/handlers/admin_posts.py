@@ -15,6 +15,8 @@ from app.bot.handlers.admin_common import (
 )
 from app.bot.keyboards.admin import (
     get_admin_input_cancel_keyboard,
+    get_cancel_post_confirm_keyboard,
+    get_publish_post_confirm_keyboard,
     get_schedule_keyboard,
     get_scheduled_post_keyboard,
 )
@@ -193,8 +195,8 @@ async def admin_post_handler(
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("admin:publish:"))
-async def admin_publish_now_handler(
+@router.callback_query(F.data.startswith("admin:publish:confirm:"))
+async def admin_publish_now_confirm_handler(
     callback: CallbackQuery,
     bot: Bot,
 ) -> None:
@@ -203,7 +205,7 @@ async def admin_publish_now_handler(
 
     parsed = parse_callback_int_str(
         callback.data,
-        "admin:publish",
+        "admin:publish:confirm",
     )
 
     if parsed is None:
@@ -259,7 +261,7 @@ async def admin_publish_now_handler(
     posts = await get_course_schedule(course_slug)
 
     await callback.message.edit_text(
-        text=("📅 <b>Расписание</b>\n\nПубликация успешно отправлена."),
+        text="📅 <b>Расписание</b>\n\nПубликация успешно отправлена.",
         reply_markup=get_schedule_keyboard(
             course_slug,
             posts,
@@ -267,8 +269,8 @@ async def admin_publish_now_handler(
     )
 
 
-@router.callback_query(F.data.startswith("admin:cancel:"))
-async def admin_cancel_post_handler(
+@router.callback_query(F.data.startswith("admin:publish:"))
+async def admin_publish_now_handler(
     callback: CallbackQuery,
 ) -> None:
     if not await check_admin(callback):
@@ -276,7 +278,64 @@ async def admin_cancel_post_handler(
 
     parsed = parse_callback_int_str(
         callback.data,
-        "admin:cancel",
+        "admin:publish",
+    )
+
+    if parsed is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    post_id, course_slug = parsed
+
+    post = await get_admin_post_for_course(
+        callback=callback,
+        post_id=post_id,
+        course_slug=course_slug,
+    )
+
+    if post is None:
+        return
+
+    if post.status not in {
+        "scheduled",
+        "failed",
+    }:
+        await callback.answer(
+            "Эту публикацию уже нельзя опубликовать.",
+            show_alert=True,
+        )
+        return
+
+    await callback.message.edit_text(
+        text=(
+            "⚠️ <b>Опубликовать сейчас?</b>\n\n"
+            f"Публикация: <b>#{post.id}</b>\n"
+            f"Тип: <b>{post.post_type}</b>\n\n"
+            "Публикация будет немедленно "
+            "отправлена в канал."
+        ),
+        reply_markup=get_publish_post_confirm_keyboard(
+            post_id=post.id,
+            course_slug=course_slug,
+        ),
+    )
+
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:cancel:confirm:"))
+async def admin_cancel_post_confirm_handler(
+    callback: CallbackQuery,
+) -> None:
+    if not await check_admin(callback):
+        return
+
+    parsed = parse_callback_int_str(
+        callback.data,
+        "admin:cancel:confirm",
     )
 
     if parsed is None:
@@ -321,6 +380,62 @@ async def admin_cancel_post_handler(
         reply_markup=get_schedule_keyboard(
             course_slug,
             posts,
+        ),
+    )
+
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:cancel:"))
+async def admin_cancel_post_handler(
+    callback: CallbackQuery,
+) -> None:
+    if not await check_admin(callback):
+        return
+
+    parsed = parse_callback_int_str(
+        callback.data,
+        "admin:cancel",
+    )
+
+    if parsed is None:
+        await callback.answer(
+            "Некорректная команда.",
+            show_alert=True,
+        )
+        return
+
+    post_id, course_slug = parsed
+
+    post = await get_admin_post_for_course(
+        callback=callback,
+        post_id=post_id,
+        course_slug=course_slug,
+    )
+
+    if post is None:
+        return
+
+    if post.status not in {
+        "scheduled",
+        "failed",
+    }:
+        await callback.answer(
+            "Эту публикацию уже нельзя отменить.",
+            show_alert=True,
+        )
+        return
+
+    await callback.message.edit_text(
+        text=(
+            "⚠️ <b>Отменить публикацию?</b>\n\n"
+            f"Публикация: <b>#{post.id}</b>\n"
+            f"Тип: <b>{post.post_type}</b>\n\n"
+            "После отмены она не будет опубликована."
+        ),
+        reply_markup=get_cancel_post_confirm_keyboard(
+            post_id=post.id,
+            course_slug=course_slug,
         ),
     )
 
@@ -423,7 +538,13 @@ async def admin_reschedule_datetime_handler(
 
     except InvalidDateTimeFormat:
         await message.answer(
-            "❌ Неверный формат.\n\nИспользуй:\n<code>05.09.2026 18:30</code>",
+            text=(
+                "❌ Неверный формат.\n\n"
+                "Используй:\n"
+                "<code>05.09.2026 18:30</code>\n\n"
+                "Попробуй ещё раз.\n"
+                "Бот продолжает ждать дату и время."
+            ),
             reply_markup=(
                 get_admin_input_cancel_keyboard(
                     post_id=post_id,
@@ -435,10 +556,14 @@ async def admin_reschedule_datetime_handler(
 
     except NonexistentLocalTime:
         await message.answer(
-            "❌ Такого местного времени "
-            "не существует из-за "
-            "перевода часов.\n\n"
-            "Выбери другое время.",
+            text=(
+                "❌ Такого местного времени "
+                "не существует из-за "
+                "перевода часов.\n\n"
+                "Выбери другое время и отправь "
+                "его ещё раз.\n"
+                "Бот продолжает ждать дату и время."
+            ),
             reply_markup=(
                 get_admin_input_cancel_keyboard(
                     post_id=post_id,
@@ -450,9 +575,13 @@ async def admin_reschedule_datetime_handler(
 
     except AmbiguousLocalTime:
         await message.answer(
-            "❌ Это время встречается дважды "
-            "из-за перевода часов.\n\n"
-            "Выбери другое время.",
+            text=(
+                "❌ Это время встречается дважды "
+                "из-за перевода часов.\n\n"
+                "Выбери другое время и отправь "
+                "его ещё раз.\n"
+                "Бот продолжает ждать дату и время."
+            ),
             reply_markup=(
                 get_admin_input_cancel_keyboard(
                     post_id=post_id,
@@ -464,7 +593,11 @@ async def admin_reschedule_datetime_handler(
 
     if scheduled_at <= datetime.now(UTC):
         await message.answer(
-            "❌ Время должно быть в будущем.",
+            text=(
+                "❌ Время должно быть в будущем.\n\n"
+                "Отправь другую дату и время.\n"
+                "Бот продолжает ждать новый ввод."
+            ),
             reply_markup=(
                 get_admin_input_cancel_keyboard(
                     post_id=post_id,

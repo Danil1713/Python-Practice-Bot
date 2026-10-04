@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.scheduled_post import (
     ScheduledPost,
 )
+
+SCHEDULED_POST_PUBLISHING_LOCK_NAMESPACE = -1004
 
 
 class ScheduledPostRepository:
@@ -82,11 +84,15 @@ class ScheduledPostRepository:
     async def recover_stuck(
         self,
         before: datetime,
-    ) -> int:
-        statement = select(ScheduledPost).where(
-            ScheduledPost.status == "publishing",
-            ScheduledPost.publishing_started_at.is_not(None),
-            ScheduledPost.publishing_started_at <= before,
+    ) -> list[ScheduledPost]:
+        statement = (
+            select(ScheduledPost)
+            .where(
+                ScheduledPost.status == "publishing",
+                ScheduledPost.publishing_started_at.is_not(None),
+                ScheduledPost.publishing_started_at <= before,
+            )
+            .with_for_update(skip_locked=True)
         )
 
         result = await self.session.execute(statement)
@@ -105,7 +111,7 @@ class ScheduledPostRepository:
 
         await self.session.flush()
 
-        return len(posts)
+        return posts
 
     async def create(
         self,
@@ -174,55 +180,89 @@ class ScheduledPostRepository:
 
         return list(result.scalars().all())
 
-    async def claim_scheduled(
+    async def lock_publishing(
         self,
-        post_id: int,
-    ) -> bool:
-        started_at = datetime.now(timezone.utc)
+        course_id: int,
+    ) -> None:
+        statement = select(
+            func.pg_advisory_xact_lock(
+                SCHEDULED_POST_PUBLISHING_LOCK_NAMESPACE,
+                course_id,
+            )
+        )
 
+        await self.session.execute(statement)
+
+    async def get_blocking_predecessor(
+        self,
+        post: ScheduledPost,
+    ) -> ScheduledPost | None:
         statement = (
-            update(ScheduledPost)
+            select(ScheduledPost)
             .where(
-                ScheduledPost.id == post_id,
-                ScheduledPost.status == "scheduled",
+                ScheduledPost.id != post.id,
+                ScheduledPost.course_id == post.course_id,
+                ScheduledPost.status.in_(
+                    [
+                        "publishing",
+                        "failed",
+                    ]
+                ),
+                or_(
+                    ScheduledPost.scheduled_at < post.scheduled_at,
+                    and_(
+                        ScheduledPost.scheduled_at == post.scheduled_at,
+                        ScheduledPost.id < post.id,
+                    ),
+                ),
             )
-            .values(
-                status="publishing",
-                publishing_started_at=started_at,
-                error_message=None,
+            .order_by(
+                ScheduledPost.scheduled_at,
+                ScheduledPost.id,
             )
-            .returning(ScheduledPost.id)
+            .limit(1)
         )
 
         result = await self.session.execute(statement)
 
-        claimed_id = result.scalar_one_or_none()
+        return result.scalar_one_or_none()
 
-        return claimed_id is not None
-
-    async def has_active_for_project(
+    async def claim_scheduled(
         self,
-        project_id: int,
-        exclude_post_id: int | None = None,
+        post_id: int,
     ) -> bool:
-        conditions = [
-            ScheduledPost.project_id == project_id,
-            ScheduledPost.status.in_(
-                [
-                    "scheduled",
-                    "publishing",
-                ]
-            ),
-        ]
+        course_statement = select(ScheduledPost.course_id).where(
+            ScheduledPost.id == post_id
+        )
 
-        if exclude_post_id is not None:
-            conditions.append(ScheduledPost.id != exclude_post_id)
+        course_result = await self.session.execute(course_statement)
 
-        statement = select(ScheduledPost.id).where(*conditions).limit(1)
+        course_id = course_result.scalar_one_or_none()
 
-        result = await self.session.execute(statement)
+        if course_id is None:
+            return False
 
-        return result.scalar_one_or_none() is not None
+        await self.lock_publishing(course_id)
+
+        post_statement = (
+            select(ScheduledPost).where(ScheduledPost.id == post_id).with_for_update()
+        )
+
+        post_result = await self.session.execute(post_statement)
+
+        post = post_result.scalar_one_or_none()
+
+        if post is None or post.status != "scheduled":
+            return False
+
+        blocker = await self.get_blocking_predecessor(post)
+
+        if blocker is not None:
+            return False
+
+        await self.mark_publishing(post)
+
+        return True
 
     async def has_active_for_hint(
         self,
