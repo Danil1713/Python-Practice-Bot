@@ -21,6 +21,9 @@ from app.bot.handlers.channel_access import (
 from app.bot.handlers.courses import router as courses_router
 from app.bot.handlers.hints import router as hints_router
 from app.bot.handlers.menu import router as menu_router
+from app.bot.handlers.notifications import (
+    router as notifications_router,
+)
 from app.bot.handlers.payments import router as payments_router
 from app.bot.handlers.progress import router as progress_router
 from app.bot.handlers.projects import router as projects_router
@@ -59,91 +62,79 @@ async def main() -> None:
         ),
     )
 
-    storage = RedisStorage.from_url(
-        get_redis_url(),
-        key_builder=DefaultKeyBuilder(
-            prefix="python_practice_bot:v1",
-        ),
-        state_ttl=timedelta(hours=24),
-        data_ttl=timedelta(hours=24),
-    )
-
-    await storage.redis.ping()
-
-    scheduler_task = asyncio.create_task(run_publishing_scheduler(bot))
-
-    attempt_worker_task = asyncio.create_task(run_attempt_check_worker(bot))
-
-    payment_recovery_task = asyncio.create_task(run_payment_recovery())
-
-    subscription_access_task = asyncio.create_task(
-        run_subscription_access_scheduler(bot)
-    )
-
-    dispatcher = Dispatcher(storage=storage)
-
-    dispatcher.errors.register(global_error_handler)
-
-    dispatcher.include_router(payments_router)
-
-    dispatcher.include_router(subscription_router)
-
-    dispatcher.include_router(channel_access_router)
-
-    dispatcher.include_router(start_router)
-
-    dispatcher.include_router(admin_router)
-
-    dispatcher.include_router(courses_router)
-
-    dispatcher.include_router(attempts_router)
-
-    dispatcher.include_router(projects_router)
-
-    dispatcher.include_router(hints_router)
-
-    dispatcher.include_router(progress_router)
-
-    dispatcher.include_router(xp_router)
-
-    dispatcher.include_router(menu_router)
-
-    await bot.delete_webhook(drop_pending_updates=False)
+    storage = None
+    background_tasks = []
 
     try:
-        await dispatcher.start_polling(bot)
+        storage = RedisStorage.from_url(
+            get_redis_url(),
+            key_builder=DefaultKeyBuilder(
+                prefix="python_practice_bot:v1",
+            ),
+            state_ttl=timedelta(hours=24),
+            data_ttl=timedelta(hours=24),
+        )
+
+        await storage.redis.ping()
+
+        dispatcher = Dispatcher(storage=storage)
+
+        dispatcher.errors.register(global_error_handler)
+
+        dispatcher.include_router(notifications_router)
+        dispatcher.include_router(payments_router)
+        dispatcher.include_router(subscription_router)
+        dispatcher.include_router(channel_access_router)
+        dispatcher.include_router(start_router)
+        dispatcher.include_router(admin_router)
+        dispatcher.include_router(courses_router)
+        dispatcher.include_router(attempts_router)
+        dispatcher.include_router(projects_router)
+        dispatcher.include_router(hints_router)
+        dispatcher.include_router(progress_router)
+        dispatcher.include_router(xp_router)
+        dispatcher.include_router(menu_router)
+
+        await bot.delete_webhook(drop_pending_updates=False)
+
+        background_tasks.append(asyncio.create_task(run_publishing_scheduler(bot)))
+
+        background_tasks.append(asyncio.create_task(run_attempt_check_worker(bot)))
+
+        background_tasks.append(asyncio.create_task(run_payment_recovery()))
+
+        background_tasks.append(
+            asyncio.create_task(run_subscription_access_scheduler(bot))
+        )
+
+        await dispatcher.start_polling(
+            bot,
+            close_bot_session=False,
+        )
 
     finally:
-        scheduler_task.cancel()
-        attempt_worker_task.cancel()
-        payment_recovery_task.cancel()
-        subscription_access_task.cancel()
+        for task in background_tasks:
+            task.cancel()
 
-        try:
-            await scheduler_task
-        except asyncio.CancelledError:
-            pass
-
-        try:
-            await attempt_worker_task
-        except asyncio.CancelledError:
-            pass
-
-        try:
-            await payment_recovery_task
-        except asyncio.CancelledError:
-            pass
-
-        try:
-            await subscription_access_task
-        except asyncio.CancelledError:
-            pass
+        if background_tasks:
+            await asyncio.gather(
+                *background_tasks,
+                return_exceptions=True,
+            )
 
         logger.info("Shutting down application")
 
-        await storage.close()
-        await close_ai_client()
-        await engine.dispose()
+        try:
+            if storage is not None:
+                await storage.close()
+        finally:
+            try:
+                await close_ai_client()
+            finally:
+                try:
+                    await engine.dispose()
+                finally:
+                    await bot.session.close()
 
 
 if __name__ == "__main__":
