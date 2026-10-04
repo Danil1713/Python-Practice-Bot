@@ -68,6 +68,7 @@ async def _show_project_selection(
     message: Message,
     state: FSMContext,
     course_slug: str,
+    notice: str | None = None,
 ) -> None:
     projects = await get_course_projects_for_schedule(course_slug)
 
@@ -80,8 +81,13 @@ async def _show_project_selection(
         hint_id=None,
     )
 
+    text = "🚀 <b>Выбери Project</b>"
+
+    if notice is not None:
+        text = f"{notice}\n\n{text}"
+
     await message.edit_text(
-        text="🚀 <b>Выбери Project</b>",
+        text=text,
         reply_markup=get_project_selection_keyboard(
             course_slug,
             projects,
@@ -107,7 +113,7 @@ async def _show_hint_project_selection(
     )
 
     await message.edit_text(
-        text=("💡 <b>Для какого Project создать Hint?</b>"),
+        text="💡 <b>Для какого Project создать Hint?</b>",
         reply_markup=get_project_selection_keyboard(
             course_slug,
             projects,
@@ -120,9 +126,9 @@ async def _show_hint_selection(
     state: FSMContext,
     course_slug: str,
     project_id: int,
+    notice: str | None = None,
 ) -> None:
     hints = await get_project_hints_for_schedule(project_id)
-
     allow_create = await can_create_hint(project_id)
 
     await state.set_state(AdminScheduleStates.choosing_hint)
@@ -134,8 +140,13 @@ async def _show_hint_selection(
         hint_id=None,
     )
 
+    text = "💡 <b>Выбери Hint</b>"
+
+    if notice is not None:
+        text = f"{notice}\n\n{text}"
+
     await message.edit_text(
-        text="💡 <b>Выбери Hint</b>",
+        text=text,
         reply_markup=get_hint_selection_keyboard(
             course_slug=course_slug,
             hints=hints,
@@ -422,7 +433,11 @@ async def admin_create_project_title_handler(
 
     if message.text is None:
         await message.answer(
-            "Название Project нужно отправить текстом.",
+            text=(
+                "❌ Название Project нужно отправить текстом.\n\n"
+                "Попробуй ещё раз.\n"
+                "Бот продолжает ждать название Project."
+            ),
             reply_markup=(get_project_creation_input_keyboard()),
         )
         return
@@ -431,14 +446,23 @@ async def admin_create_project_title_handler(
 
     if not title:
         await message.answer(
-            "Название Project не может быть пустым.",
+            text=(
+                "❌ Название Project не может быть пустым.\n\n"
+                "Попробуй ещё раз.\n"
+                "Бот продолжает ждать название Project."
+            ),
             reply_markup=(get_project_creation_input_keyboard()),
         )
         return
 
     if len(title) > 255:
         await message.answer(
-            "Название Project не должно превышать 255 символов.",
+            text=(
+                "❌ Название Project не должно "
+                "превышать 255 символов.\n\n"
+                "Попробуй ещё раз.\n"
+                "Бот продолжает ждать название Project."
+            ),
             reply_markup=(get_project_creation_input_keyboard()),
         )
         return
@@ -506,7 +530,12 @@ async def admin_create_project_requirements_handler(
 
     if message.text is None:
         await message.answer(
-            "Обязательные критерии нужно отправить текстом.",
+            text=(
+                "❌ Обязательные критерии нужно "
+                "отправить текстом.\n\n"
+                "Попробуй ещё раз.\n"
+                "Бот продолжает ждать обязательные критерии."
+            ),
             reply_markup=(get_project_creation_input_keyboard()),
         )
         return
@@ -515,7 +544,11 @@ async def admin_create_project_requirements_handler(
 
     if not ai_requirements:
         await message.answer(
-            "Обязательные критерии не могут быть пустыми.",
+            text=(
+                "❌ Обязательные критерии не могут быть пустыми.\n\n"
+                "Попробуй ещё раз.\n"
+                "Бот продолжает ждать обязательные критерии."
+            ),
             reply_markup=(get_project_creation_input_keyboard()),
         )
         return
@@ -598,9 +631,15 @@ async def admin_create_project_confirm_handler(
         callback.message,
         state,
         course_slug,
+        notice=(
+            f"✅ <b>Project "
+            f"{project.number} создан.</b>\n"
+            "Теперь его можно сразу выбрать "
+            "для публикации."
+        ),
     )
 
-    await callback.answer(f"✅ Project {project.number} создан.")
+    await callback.answer()
 
 
 @router.callback_query(
@@ -862,11 +901,17 @@ async def admin_create_hint_confirm_handler(
         state,
         course_slug,
         project_id,
+        notice=(
+            f"✅ <b>Hint "
+            f"{hint.number} создана.</b>\n"
+            f"XP после публикации: "
+            f"<b>{hint.xp_after_publish}</b>.\n"
+            "Теперь её можно сразу выбрать "
+            "для публикации."
+        ),
     )
 
-    await callback.answer(
-        f"✅ Hint {hint.number} создана. XP после публикации: {hint.xp_after_publish}."
-    )
+    await callback.answer()
 
 
 @router.callback_query(
@@ -936,8 +981,14 @@ async def admin_add_content_handler(
 
     except TelegramPostValidationError as error:
         await message.answer(
-            f"❌ <b>Публикацию нельзя сохранить.</b>\n\n{escape(str(error))}",
-            reply_markup=get_admin_add_cancel_keyboard(course_slug),
+            text=(
+                "❌ <b>Публикацию нельзя "
+                "сохранить.</b>\n\n"
+                f"{escape(str(error))}\n\n"
+                "Исправь текст и отправь его ещё раз.\n"
+                "Бот продолжает ждать публикацию."
+            ),
+            reply_markup=(get_admin_add_cancel_keyboard(course_slug)),
         )
         return
 
@@ -999,33 +1050,51 @@ async def admin_add_datetime_handler(
 
     except InvalidDateTimeFormat:
         await message.answer(
-            "❌ Неверный формат.\n\nПример:\n<code>05.09.2026 18:30</code>",
-            reply_markup=get_admin_add_cancel_keyboard(course_slug),
+            text=(
+                "❌ Неверный формат.\n\n"
+                "Пример:\n"
+                "<code>05.09.2026 18:30</code>\n\n"
+                "Попробуй ещё раз.\n"
+                "Бот продолжает ждать дату и время."
+            ),
+            reply_markup=(get_admin_add_cancel_keyboard(course_slug)),
         )
         return
 
     except NonexistentLocalTime:
         await message.answer(
-            "❌ Такого местного времени "
-            "не существует из-за перевода часов.\n\n"
-            "Выбери другое время.",
-            reply_markup=get_admin_add_cancel_keyboard(course_slug),
+            text=(
+                "❌ Такого местного времени "
+                "не существует из-за перевода часов.\n\n"
+                "Выбери другое время и отправь "
+                "его ещё раз.\n"
+                "Бот продолжает ждать дату и время."
+            ),
+            reply_markup=(get_admin_add_cancel_keyboard(course_slug)),
         )
         return
 
     except AmbiguousLocalTime:
         await message.answer(
-            "❌ Это время встречается дважды "
-            "из-за перевода часов.\n\n"
-            "Выбери другое время.",
-            reply_markup=get_admin_add_cancel_keyboard(course_slug),
+            text=(
+                "❌ Это время встречается дважды "
+                "из-за перевода часов.\n\n"
+                "Выбери другое время и отправь "
+                "его ещё раз.\n"
+                "Бот продолжает ждать дату и время."
+            ),
+            reply_markup=(get_admin_add_cancel_keyboard(course_slug)),
         )
         return
 
     if scheduled_at <= datetime.now(UTC):
         await message.answer(
-            "❌ Время должно быть в будущем.",
-            reply_markup=get_admin_add_cancel_keyboard(course_slug),
+            text=(
+                "❌ Время должно быть в будущем.\n\n"
+                "Отправь другую дату и время.\n"
+                "Бот продолжает ждать новый ввод."
+            ),
+            reply_markup=(get_admin_add_cancel_keyboard(course_slug)),
         )
         return
 

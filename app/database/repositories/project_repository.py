@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.models.hint import Hint
 from app.database.models.project import Project
 
 PROJECT_CREATION_LOCK_NAMESPACE = -1001
@@ -50,11 +51,26 @@ class ProjectRepository:
         self,
         course_id: int,
     ) -> list[Project]:
+        has_any_hint = select(Hint.id).where(Hint.project_id == Project.id).exists()
+
+        has_unpublished_hint = (
+            select(Hint.id)
+            .where(
+                Hint.project_id == Project.id,
+                Hint.published_at.is_(None),
+            )
+            .exists()
+        )
+
         statement = (
             select(Project)
             .where(
                 Project.course_id == course_id,
                 Project.published_at.is_not(None),
+                or_(
+                    ~has_any_hint,
+                    has_unpublished_hint,
+                ),
             )
             .order_by(Project.number)
         )

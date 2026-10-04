@@ -215,6 +215,7 @@ async def test_project_with_only_published_hints_is_hidden(
         title="Project",
         max_xp=100,
         ai_requirements="Requirements",
+        published_at=datetime.now(timezone.utc),
     )
 
     db_session.add(project)
@@ -1037,7 +1038,12 @@ async def test_project_confirmation_creates_once_and_returns_to_list(
         "hint_id": None,
     }
 
-    callback.answer.assert_awaited_once_with("✅ Project 4 создан.")
+    edit_request = callback.message.edit_text.await_args
+
+    assert "Project 4 создан" in (edit_request.kwargs["text"])
+    assert "сразу выбрать" in (edit_request.kwargs["text"])
+
+    callback.answer.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio
@@ -1102,7 +1108,7 @@ async def test_hint_confirmation_creates_once_and_returns_to_same_project(
 
     get_hints_mock.assert_awaited_once_with(123)
 
-    assert state.current_state == (AdminScheduleStates.choosing_hint)
+    assert state.current_state == AdminScheduleStates.choosing_hint
 
     assert state.data == {
         "course_slug": "python_start",
@@ -1111,6 +1117,198 @@ async def test_hint_confirmation_creates_once_and_returns_to_same_project(
         "hint_id": None,
     }
 
-    callback.answer.assert_awaited_once_with(
-        "✅ Hint 2 создана. XP после публикации: 60."
+    edit_request = callback.message.edit_text.await_args
+
+    assert "Hint 2 создана" in (edit_request.kwargs["text"])
+    assert "60" in edit_request.kwargs["text"]
+    assert "сразу выбрать" in (edit_request.kwargs["text"])
+
+    callback.answer.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_invalid_publication_content_explains_retry(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        admin_post_creation,
+        "is_admin",
+        lambda user_id: True,
     )
+
+    state = FakeFSMContext(
+        data={
+            "course_slug": "demo",
+            "post_type": "regular",
+        },
+        current_state=(AdminScheduleStates.waiting_for_content),
+    )
+
+    message = SimpleNamespace(
+        from_user=SimpleNamespace(id=1),
+        html_text="",
+        answer=AsyncMock(),
+    )
+
+    await admin_post_creation.admin_add_content_handler(
+        message,
+        state,
+    )
+
+    assert state.current_state == (AdminScheduleStates.waiting_for_content)
+
+    answer = message.answer.await_args
+
+    assert "Текст публикации пустой" in (answer.kwargs["text"])
+    assert "отправь его ещё раз" in (answer.kwargs["text"])
+    assert "Бот продолжает ждать" in (answer.kwargs["text"])
+
+
+@pytest.mark.asyncio
+async def test_invalid_publication_datetime_explains_retry(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        admin_post_creation,
+        "is_admin",
+        lambda user_id: True,
+    )
+
+    state = FakeFSMContext(
+        data={
+            "course_slug": "demo",
+            "post_type": "regular",
+            "content": "Test publication",
+        },
+        current_state=(AdminScheduleStates.waiting_for_datetime),
+    )
+
+    message = SimpleNamespace(
+        from_user=SimpleNamespace(id=1),
+        text="завтра вечером",
+        answer=AsyncMock(),
+    )
+
+    await admin_post_creation.admin_add_datetime_handler(
+        message,
+        state,
+    )
+
+    assert state.current_state == (AdminScheduleStates.waiting_for_datetime)
+
+    answer = message.answer.await_args
+
+    assert "Неверный формат" in answer.kwargs["text"]
+    assert "Попробуй ещё раз" in answer.kwargs["text"]
+    assert "Бот продолжает ждать" in (answer.kwargs["text"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("text", "expected_error"),
+    [
+        (
+            None,
+            "нужно отправить текстом",
+        ),
+        (
+            "   ",
+            "не может быть пустым",
+        ),
+        (
+            "x" * 256,
+            "не должно превышать 255 символов",
+        ),
+    ],
+)
+async def test_invalid_project_title_explains_retry(
+    monkeypatch,
+    text,
+    expected_error,
+):
+    monkeypatch.setattr(
+        admin_post_creation,
+        "is_admin",
+        lambda user_id: True,
+    )
+
+    state = FakeFSMContext(
+        data={
+            "course_slug": "python_start",
+            "post_type": "project",
+        },
+        current_state=(AdminScheduleStates.creating_project_title),
+    )
+
+    message = SimpleNamespace(
+        from_user=SimpleNamespace(id=1),
+        text=text,
+        answer=AsyncMock(),
+    )
+
+    await admin_post_creation.admin_create_project_title_handler(
+        message,
+        state,
+    )
+
+    answer = message.answer.await_args
+
+    assert expected_error in answer.kwargs["text"]
+    assert "Попробуй ещё раз" in answer.kwargs["text"]
+    assert "Бот продолжает ждать" in answer.kwargs["text"]
+
+    assert state.current_state == (AdminScheduleStates.creating_project_title)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("text", "expected_error"),
+    [
+        (
+            None,
+            "нужно отправить текстом",
+        ),
+        (
+            "   ",
+            "не могут быть пустыми",
+        ),
+    ],
+)
+async def test_invalid_project_requirements_explain_retry(
+    monkeypatch,
+    text,
+    expected_error,
+):
+    monkeypatch.setattr(
+        admin_post_creation,
+        "is_admin",
+        lambda user_id: True,
+    )
+
+    state = FakeFSMContext(
+        data={
+            "course_slug": "python_start",
+            "post_type": "project",
+            "project_title": "Test Project",
+        },
+        current_state=(AdminScheduleStates.creating_project_ai_requirements),
+    )
+
+    message = SimpleNamespace(
+        from_user=SimpleNamespace(id=1),
+        text=text,
+        answer=AsyncMock(),
+    )
+
+    await admin_post_creation.admin_create_project_requirements_handler(
+        message,
+        state,
+    )
+
+    answer = message.answer.await_args
+
+    assert expected_error in answer.kwargs["text"]
+    assert "Попробуй ещё раз" in answer.kwargs["text"]
+    assert "Бот продолжает ждать" in answer.kwargs["text"]
+
+    assert state.current_state == (AdminScheduleStates.creating_project_ai_requirements)
