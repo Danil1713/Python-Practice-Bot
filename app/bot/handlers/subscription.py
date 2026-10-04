@@ -99,6 +99,7 @@ async def subscription_handler(
             can_pay=(view.requires_subscription and plan is not None),
             can_open_channel=(view.status == "active" and view.has_channel),
             stars_price=(plan.stars_price if plan is not None else None),
+            rubles_price=(plan.rubles_price if plan is not None else None),
             admin_username=get_admin_username(),
         ),
     )

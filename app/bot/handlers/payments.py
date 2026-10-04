@@ -38,12 +38,21 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 PAYMENT_SUPPORT_TEXT = (
-    "💳 <b>Поддержка по оплате</b>\n\n"
-    "Если возникла проблема с оплатой, "
-    "списанием Stars или активацией подписки, "
-    "напиши администратору.\n\n"
-    "При обращении укажи:\n"
+    "💳 <b>Оплата и поддержка</b>\n\n"
+    "Доступны два способа оплаты:\n"
+    "• ⭐ <b>Telegram Stars</b> — "
+    "автоматическая оплата внутри бота;\n"
+    "• ₽ <b>Рубли</b> — "
+    "оплата напрямую через администратора.\n\n"
+    "Стоимость в рублях указана "
+    "на экране подписки.\n\n"
+    "Чтобы оплатить в рублях, нажми кнопку ниже "
+    "и напиши администратору. "
+    "Он отправит реквизиты, а после проверки "
+    "оплаты активирует подписку.\n\n"
+    "Если ты уже оплатил и возникла проблема, укажи:\n"
     "• какой курс покупал;\n"
+    "• способ оплаты;\n"
     "• примерное время оплаты;\n"
     "• что именно произошло."
 )
@@ -312,6 +321,7 @@ async def cancel_stars_payment_handler(
             course_slug=course_slug,
             can_pay=plan is not None,
             stars_price=(plan.stars_price if plan is not None else None),
+            rubles_price=(plan.rubles_price if plan is not None else None),
             admin_username=get_admin_username(),
         ),
     )

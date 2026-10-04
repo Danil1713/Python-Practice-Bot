@@ -13,8 +13,12 @@ from sqlalchemy.ext.asyncio import (
 from app.bot.handlers.admin_payments import (
     build_review_payments_text,
 )
+from app.bot.handlers.payments import (
+    PAYMENT_SUPPORT_TEXT,
+)
 from app.bot.keyboards.subscription import (
     get_payment_support_keyboard,
+    get_subscription_keyboard,
 )
 from app.database.models.course import Course
 from app.database.models.payment import Payment
@@ -32,6 +36,9 @@ from app.services.payment_service import (
     get_review_payments_for_course,
     process_telegram_stars_payment,
     retry_payment_activation,
+)
+from app.services.pricing_service import (
+    get_subscription_plan,
 )
 
 DATABASE_URL = os.environ["DATABASE_URL"]
@@ -608,3 +615,44 @@ async def test_repeated_purchase_reuses_pending_payment():
 
     finally:
         await engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("course_slug", "stars_price", "rubles_price"),
+    [
+        ("python_start", 350, 699),
+        ("python_practice", 500, 999),
+    ],
+)
+def test_subscription_keyboard_shows_both_payment_methods(
+    course_slug,
+    stars_price,
+    rubles_price,
+):
+    plan = get_subscription_plan(course_slug)
+
+    assert plan is not None
+    assert plan.stars_price == stars_price
+    assert plan.rubles_price == rubles_price
+
+    keyboard = get_subscription_keyboard(
+        course_slug=course_slug,
+        can_pay=True,
+        stars_price=plan.stars_price,
+        rubles_price=plan.rubles_price,
+        admin_username="test_admin",
+    )
+
+    buttons = {
+        button.text: button for row in keyboard.inline_keyboard for button in row
+    }
+
+    assert f"⭐ Купить за {stars_price} Stars" in buttons
+    assert f"💳 Купить за {rubles_price} ₽" in buttons
+    assert buttons[f"💳 Купить за {rubles_price} ₽"].url == "https://t.me/test_admin"
+
+
+def test_payment_support_explains_both_payment_methods():
+    assert "Telegram Stars" in PAYMENT_SUPPORT_TEXT
+    assert "Рубли" in PAYMENT_SUPPORT_TEXT
+    assert "напрямую через администратора" in PAYMENT_SUPPORT_TEXT

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 class SubscriptionPlan:
     course_slug: str
     stars_price: int
+    rubles_price: int
     days: int
 
 
@@ -12,11 +13,13 @@ _SUBSCRIPTION_PLANS = (
     SubscriptionPlan(
         course_slug="python_start",
         stars_price=350,
+        rubles_price=699,
         days=30,
     ),
     SubscriptionPlan(
         course_slug="python_practice",
         stars_price=500,
+        rubles_price=999,
         days=30,
     ),
 )

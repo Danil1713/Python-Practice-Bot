@@ -18,6 +18,7 @@ def get_subscription_keyboard(
     can_pay: bool,
     can_open_channel: bool = False,
     stars_price: int | None = None,
+    rubles_price: int | None = None,
     admin_username: str | None = None,
 ) -> InlineKeyboardMarkup:
     rows = []
@@ -50,12 +51,12 @@ def get_subscription_keyboard(
             ]
         )
 
-    if admin_username:
+    if can_pay and rubles_price is not None and admin_username:
         rows.append(
             [
                 InlineKeyboardButton(
-                    text="💬 Купить вручную",
-                    url=(f"https://t.me/{admin_username}"),
+                    text=f"💳 Купить за {rubles_price} ₽",
+                    url=f"https://t.me/{admin_username}",
                 )
             ]
         )
