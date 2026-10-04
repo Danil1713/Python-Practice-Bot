@@ -2,29 +2,32 @@ import asyncio
 import logging
 from typing import Literal
 
-from google import genai
-from google.genai.errors import (
-    ClientError,
-    ServerError,
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    AsyncOpenAI,
 )
 from pydantic import BaseModel, Field
 
 from app.config import (
     get_ai_max_attempts,
     get_ai_max_concurrency,
+    get_ai_max_output_tokens,
     get_ai_model,
+    get_ai_reasoning_effort,
     get_ai_retry_base_delay_seconds,
     get_ai_timeout_seconds,
-    get_gemini_api_key,
+    get_openai_api_key,
 )
 
 logger = logging.getLogger(__name__)
 
 
-AI_POLICY_VERSION = "code-review-v2"
+AI_POLICY_VERSION = "code-review-v3-openai"
 
-RETRIABLE_CLIENT_CODES = {
+RETRIABLE_STATUS_CODES = {
     408,
+    409,
     429,
 }
 
@@ -105,7 +108,19 @@ def resolve_review_verdict(
     return expected_verdict
 
 
-client = genai.Client(api_key=get_gemini_api_key())
+_client: AsyncOpenAI | None = None
+
+
+def get_ai_client() -> AsyncOpenAI:
+    global _client
+
+    if _client is None:
+        _client = AsyncOpenAI(
+            api_key=get_openai_api_key(),
+            max_retries=0,
+        )
+
+    return _client
 
 
 ai_semaphore = asyncio.Semaphore(get_ai_max_concurrency())
@@ -159,30 +174,27 @@ def is_retriable_ai_error(
 ) -> bool:
     if isinstance(
         error,
-        TimeoutError,
+        (
+            TimeoutError,
+            APIConnectionError,
+        ),
     ):
         return True
 
     if isinstance(
         error,
-        ServerError,
+        APIStatusError,
     ):
-        return True
-
-    if isinstance(
-        error,
-        ClientError,
-    ):
-        return error.code in RETRIABLE_CLIENT_CODES
+        return error.status_code in RETRIABLE_STATUS_CODES or error.status_code >= 500
 
     return False
 
 
 def log_ai_usage(
-    interaction,
+    response,
 ) -> None:
     usage = getattr(
-        interaction,
+        response,
         "usage",
         None,
     )
@@ -196,12 +208,12 @@ def log_ai_usage(
         AI_POLICY_VERSION,
         getattr(
             usage,
-            "total_input_tokens",
+            "input_tokens",
             None,
         ),
         getattr(
             usage,
-            "total_output_tokens",
+            "output_tokens",
             None,
         ),
         getattr(
@@ -216,11 +228,8 @@ async def request_review(
     prompt: str,
 ):
     max_attempts = get_ai_max_attempts()
-
     timeout_seconds = get_ai_timeout_seconds()
-
     base_delay = get_ai_retry_base_delay_seconds()
-
     model = get_ai_model()
 
     for attempt_number in range(
@@ -237,24 +246,24 @@ async def request_review(
             )
 
             async with ai_semaphore:
-                interaction = await asyncio.wait_for(
-                    client.aio.interactions.create(
+                response = await asyncio.wait_for(
+                    get_ai_client().responses.parse(
                         model=model,
+                        instructions=SYSTEM_INSTRUCTION,
                         input=prompt,
-                        system_instruction=(SYSTEM_INSTRUCTION),
-                        response_format={
-                            "type": "text",
-                            "mime_type": ("application/json"),
-                            "schema": (CodeReviewResult.model_json_schema()),
+                        text_format=CodeReviewResult,
+                        reasoning={
+                            "effort": get_ai_reasoning_effort(),
                         },
+                        max_output_tokens=(get_ai_max_output_tokens()),
                         store=False,
                     ),
                     timeout=timeout_seconds,
                 )
 
-            log_ai_usage(interaction)
+            log_ai_usage(response)
 
-            return interaction
+            return response
 
         except Exception as error:
             should_retry = is_retriable_ai_error(error)
@@ -294,16 +303,26 @@ async def review_python_code(
         "</student_code>"
     )
 
-    interaction = await request_review(prompt)
+    response = await request_review(prompt)
 
-    if not interaction.output_text:
-        raise RuntimeError("AI не вернул структурированный результат")
+    result = response.output_parsed
 
-    return CodeReviewResult.model_validate_json(interaction.output_text)
+    if result is None:
+        raise RuntimeError("OpenAI не вернул структурированный результат")
+
+    return result
 
 
 async def close_ai_client() -> None:
-    await client.aio.aclose()
+    global _client
+
+    if _client is None:
+        return
+
+    client = _client
+    _client = None
+
+    await client.close()
 
 
 def format_review_feedback(

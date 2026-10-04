@@ -30,10 +30,6 @@ def get_openai_api_key() -> str:
     return get_required_env("OPENAI_API_KEY")
 
 
-def get_gemini_api_key() -> str:
-    return get_required_env("GEMINI_API_KEY")
-
-
 def get_admin_telegram_ids() -> set[int]:
     raw_value = get_required_env("ADMIN_TELEGRAM_IDS")
 
@@ -54,7 +50,7 @@ def get_admin_username() -> str:
 def get_ai_model() -> str:
     return os.getenv(
         "AI_MODEL",
-        "gemini-3.6-flash",
+        "gpt-5.6-terra",
     )
 
 
@@ -156,3 +152,40 @@ def get_float_env(
         raise RuntimeError(f"{name} должен быть не меньше {min_value}")
 
     return value
+
+
+AI_REASONING_EFFORTS = {
+    "none",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+}
+
+
+def get_ai_reasoning_effort() -> str:
+    value = (
+        os.getenv(
+            "AI_REASONING_EFFORT",
+            "low",
+        )
+        .strip()
+        .lower()
+    )
+
+    if value not in AI_REASONING_EFFORTS:
+        raise RuntimeError(
+            "AI_REASONING_EFFORT должен быть одним из: "
+            + ", ".join(sorted(AI_REASONING_EFFORTS))
+        )
+
+    return value
+
+
+def get_ai_max_output_tokens() -> int:
+    return get_int_env(
+        "AI_MAX_OUTPUT_TOKENS",
+        3000,
+        min_value=1,
+    )
