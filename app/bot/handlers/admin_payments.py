@@ -253,6 +253,10 @@ async def admin_review_payment_retry_handler(
         )
         return
 
+    course = await get_course_by_slug(course_slug)
+
+    can_open_channel = course is not None and course.telegram_channel_id is not None
+
     notification_sent = True
 
     try:
@@ -266,7 +270,7 @@ async def admin_review_payment_retry_handler(
             reply_markup=get_subscription_keyboard(
                 course_slug=payment.course_slug,
                 can_pay=False,
-                can_open_channel=True,
+                can_open_channel=can_open_channel,
             ),
         )
 
@@ -281,8 +285,6 @@ async def admin_review_payment_retry_handler(
             payment.id,
             payment.telegram_user_id,
         )
-
-    course = await get_course_by_slug(course_slug)
 
     if course is None:
         await callback.message.edit_text("✅ Подписка активирована.")

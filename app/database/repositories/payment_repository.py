@@ -1,9 +1,11 @@
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.payment import Payment
+
+PAYMENT_CREATION_LOCK_NAMESPACE = -1003
 
 
 class PaymentRepository:
@@ -154,6 +156,44 @@ class PaymentRepository:
             )
             .order_by(Payment.created_at.asc())
             .limit(limit)
+        )
+
+        result = await self.session.execute(statement)
+
+        return list(result.scalars().all())
+
+    async def lock_creation(
+        self,
+        user_id: int,
+    ) -> None:
+        statement = select(
+            func.pg_advisory_xact_lock(
+                PAYMENT_CREATION_LOCK_NAMESPACE,
+                user_id,
+            )
+        )
+
+        await self.session.execute(statement)
+
+    async def get_unstarted_pending_for_update(
+        self,
+        *,
+        user_id: int,
+        course_id: int,
+    ) -> list[Payment]:
+        statement = (
+            select(Payment)
+            .where(
+                Payment.user_id == user_id,
+                Payment.course_id == course_id,
+                Payment.status == "pending",
+                Payment.pre_checkout_at.is_(None),
+            )
+            .order_by(
+                Payment.created_at.desc(),
+                Payment.id.desc(),
+            )
+            .with_for_update()
         )
 
         result = await self.session.execute(statement)

@@ -14,7 +14,10 @@ from app.database.repositories.user_repository import (
 from app.database.session import (
     async_session_factory,
 )
-from app.services.subscription_service import activate_or_extend_subscription_in_session
+from app.services.subscription_service import (
+    SubscriptionAuditContext,
+    activate_or_extend_subscription_in_session,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +84,7 @@ async def create_payment(
     provider: str,
     amount: int,
     subscription_days: int,
-    currency: str = "RUB",
+    currency: str = "XTR",
 ) -> CreatedPayment:
     if amount <= 0:
         raise PaymentError("Стоимость должна быть больше 0.")
@@ -106,6 +109,42 @@ async def create_payment(
 
         if not course.requires_subscription:
             raise PaymentError("Для этого курса подписка не требуется.")
+
+        await payment_repository.lock_creation(user.id)
+
+        pending_payments = await payment_repository.get_unstarted_pending_for_update(
+            user_id=user.id,
+            course_id=course.id,
+        )
+
+        reusable_payment = None
+
+        for pending_payment in pending_payments:
+            matches_current_plan = (
+                pending_payment.provider == provider
+                and pending_payment.amount == amount
+                and pending_payment.currency == currency
+                and pending_payment.subscription_days == subscription_days
+            )
+
+            if reusable_payment is None and matches_current_plan:
+                reusable_payment = pending_payment
+                continue
+
+            await payment_repository.mark_cancelled(pending_payment)
+
+        if reusable_payment is not None:
+            await session.commit()
+
+            return CreatedPayment(
+                id=reusable_payment.id,
+                user_id=reusable_payment.user_id,
+                course_id=reusable_payment.course_id,
+                amount=reusable_payment.amount,
+                currency=reusable_payment.currency,
+                subscription_days=(reusable_payment.subscription_days),
+                status=reusable_payment.status,
+            )
 
         payment = await payment_repository.create(
             user_id=user.id,
@@ -235,6 +274,12 @@ async def _process_telegram_stars_payment(
             user_id=payment.user_id,
             course_id=payment.course_id,
             days=payment.subscription_days,
+            audit=SubscriptionAuditContext(
+                actor_telegram_id=telegram_user_id,
+                source="payment",
+                reason="telegram_stars_payment",
+                idempotency_key=f"payment:{payment.id}",
+            ),
         )
 
         await payment_repository.mark_succeeded(

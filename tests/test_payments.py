@@ -1,4 +1,6 @@
+import asyncio
 import os
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
@@ -8,21 +10,64 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.bot.handlers.admin_payments import (
+    build_review_payments_text,
+)
+from app.bot.keyboards.subscription import (
+    get_payment_support_keyboard,
+)
 from app.database.models.course import Course
 from app.database.models.payment import Payment
 from app.database.models.subscription import (
     Subscription,
 )
+from app.database.models.subscription_event import (
+    SubscriptionEvent,
+)
 from app.database.models.user import User
 from app.services.payment_service import (
     PaymentError,
     cancel_payment,
+    create_payment,
     get_review_payments_for_course,
     process_telegram_stars_payment,
     retry_payment_activation,
 )
 
 DATABASE_URL = os.environ["DATABASE_URL"]
+
+
+def test_empty_payment_review_text():
+    text = build_review_payments_text(
+        course_title="Python Practice",
+        payments=[],
+    )
+
+    assert text == (
+        "💳 <b>Платежи на проверке</b>\n"
+        "\n"
+        "Курс: <b>Python Practice</b>\n"
+        "\n"
+        "✅ Платежей, требующих проверки, нет."
+    )
+
+
+def test_payment_support_command_returns_to_course_list():
+    keyboard = get_payment_support_keyboard()
+
+    back_button = keyboard.inline_keyboard[-1][0]
+
+    assert back_button.text == "⬅️ К выбору уровня"
+    assert back_button.callback_data == "nav:courses"
+
+
+def test_course_payment_support_returns_to_subscription():
+    keyboard = get_payment_support_keyboard("python_start")
+
+    back_button = keyboard.inline_keyboard[-1][0]
+
+    assert back_button.text == "⬅️ Назад к подписке"
+    assert back_button.callback_data == ("menu:subscription:python_start")
 
 
 async def create_test_payment(
@@ -133,6 +178,36 @@ async def get_subscription(
         await engine.dispose()
 
 
+async def get_subscription_events(
+    *,
+    user_id: int,
+    course_id: int,
+) -> list[SubscriptionEvent]:
+    engine = create_async_engine(DATABASE_URL)
+
+    session_factory = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    try:
+        async with session_factory() as session:
+            result = await session.execute(
+                select(SubscriptionEvent)
+                .where(
+                    SubscriptionEvent.user_id == user_id,
+                    SubscriptionEvent.course_id == course_id,
+                )
+                .order_by(SubscriptionEvent.id)
+            )
+
+            return list(result.scalars().all())
+
+    finally:
+        await engine.dispose()
+
+
 @pytest.mark.asyncio
 async def test_successful_payment_is_idempotent():
     telegram_id = 900000101
@@ -172,6 +247,25 @@ async def test_successful_payment_is_idempotent():
 
     first_ends_at = first_subscription.ends_at
 
+    first_events = await get_subscription_events(
+        user_id=user_id,
+        course_id=course_id,
+    )
+
+    assert len(first_events) == 1
+
+    first_event = first_events[0]
+
+    assert first_event.subscription_id == first_subscription.id
+    assert first_event.actor_telegram_id == telegram_id
+    assert first_event.event_type == "activate_or_extend"
+    assert first_event.source == "payment"
+    assert first_event.reason == "telegram_stars_payment"
+    assert first_event.days == 30
+    assert first_event.old_status is None
+    assert first_event.new_status == "active"
+    assert first_event.idempotency_key == f"payment:{payment_id}"
+
     second_result = await process_telegram_stars_payment(
         payment_id=payment_id,
         telegram_user_id=telegram_id,
@@ -194,6 +288,14 @@ async def test_successful_payment_is_idempotent():
     assert second_subscription is not None
 
     assert second_subscription.ends_at == first_ends_at
+
+    second_events = await get_subscription_events(
+        user_id=user_id,
+        course_id=course_id,
+    )
+
+    assert len(second_events) == 1
+    assert second_events[0].id == first_event.id
 
 
 @pytest.mark.asyncio
@@ -433,3 +535,76 @@ async def test_cancel_payment_rejects_wrong_course():
     payment = await get_payment(payment_id)
 
     assert payment.status == "pending"
+
+
+@pytest.mark.asyncio
+async def test_repeated_purchase_reuses_pending_payment():
+    suffix = uuid4().hex[:12]
+
+    telegram_id = 8_300_000_000_000 + uuid4().int % 1_000_000_000_000
+
+    course_slug = f"payment_reuse_{suffix}"
+
+    engine = create_async_engine(DATABASE_URL)
+
+    session_factory = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    try:
+        async with session_factory() as session:
+            user = User(
+                telegram_id=telegram_id,
+                username=f"payment_reuse_{suffix}",
+                first_name="Test",
+            )
+
+            course = Course(
+                slug=course_slug,
+                title="Payment reuse",
+                requires_subscription=True,
+                is_active=True,
+            )
+
+            session.add_all(
+                [
+                    user,
+                    course,
+                ]
+            )
+
+            await session.commit()
+
+        async def create() -> int:
+            payment = await create_payment(
+                telegram_user_id=telegram_id,
+                course_slug=course_slug,
+                provider="telegram_stars",
+                amount=150,
+                subscription_days=30,
+            )
+
+            return payment.id
+
+        first_id, second_id = await asyncio.gather(
+            create(),
+            create(),
+        )
+
+        assert first_id == second_id
+
+        async with session_factory() as session:
+            result = await session.execute(
+                select(Payment).where(Payment.id == first_id)
+            )
+
+            payments = list(result.scalars().all())
+
+            assert len(payments) == 1
+            assert payments[0].status == "pending"
+            assert payments[0].currency == "XTR"
+
+    finally:
+        await engine.dispose()

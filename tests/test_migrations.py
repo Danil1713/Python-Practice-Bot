@@ -72,3 +72,49 @@ async def test_xp_transactions_schema():
         "reason",
         "created_at",
     } <= columns
+
+
+@pytest.mark.asyncio
+async def test_course_channel_id_is_unique():
+    database_url = os.environ["DATABASE_URL"]
+
+    engine = create_async_engine(database_url)
+
+    try:
+        async with engine.connect() as connection:
+            constraints = await connection.run_sync(
+                lambda sync_connection: {
+                    constraint["name"]
+                    for constraint in inspect(sync_connection).get_unique_constraints(
+                        "courses"
+                    )
+                }
+            )
+
+    finally:
+        await engine.dispose()
+
+    assert "uq_courses_telegram_channel_id" in constraints
+
+
+@pytest.mark.asyncio
+async def test_subscription_event_actor_can_be_null():
+    database_url = os.environ["DATABASE_URL"]
+
+    engine = create_async_engine(database_url)
+
+    try:
+        async with engine.connect() as connection:
+            columns = await connection.run_sync(
+                lambda sync_connection: {
+                    column["name"]: column
+                    for column in inspect(sync_connection).get_columns(
+                        "subscription_events"
+                    )
+                }
+            )
+
+    finally:
+        await engine.dispose()
+
+    assert columns["actor_telegram_id"]["nullable"] is True

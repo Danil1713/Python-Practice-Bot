@@ -19,6 +19,9 @@ from app.bot.keyboards.subscription import (
     get_subscription_keyboard,
 )
 from app.config import get_admin_username
+from app.services.course_service import (
+    get_course_by_slug,
+)
 from app.services.payment_service import (
     PaymentError,
     approve_pre_checkout,
@@ -192,7 +195,7 @@ async def successful_payment_handler(
             "charge_id=%s",
             payload,
             message.from_user.id,
-            (successful_payment.telegram_payment_charge_id),
+            successful_payment.telegram_payment_charge_id,
         )
 
         await message.answer(
@@ -211,10 +214,10 @@ async def successful_payment_handler(
     try:
         processed = await process_telegram_stars_payment(
             payment_id=payment_id,
-            telegram_user_id=(message.from_user.id),
-            telegram_payment_charge_id=(successful_payment.telegram_payment_charge_id),
-            currency=(successful_payment.currency),
-            total_amount=(successful_payment.total_amount),
+            telegram_user_id=message.from_user.id,
+            telegram_payment_charge_id=successful_payment.telegram_payment_charge_id,
+            currency=successful_payment.currency,
+            total_amount=successful_payment.total_amount,
         )
 
     except PaymentError as error:
@@ -226,7 +229,7 @@ async def successful_payment_handler(
             "error=%s",
             payment_id,
             message.from_user.id,
-            (successful_payment.telegram_payment_charge_id),
+            successful_payment.telegram_payment_charge_id,
             error,
         )
 
@@ -242,6 +245,10 @@ async def successful_payment_handler(
         )
         return
 
+    course = await get_course_by_slug(processed.course_slug)
+
+    can_open_channel = course is not None and course.telegram_channel_id is not None
+
     await message.answer(
         text=(
             "✅ <b>Оплата прошла успешно!</b>\n\n"
@@ -251,7 +258,7 @@ async def successful_payment_handler(
         reply_markup=get_subscription_keyboard(
             course_slug=processed.course_slug,
             can_pay=False,
-            can_open_channel=True,
+            can_open_channel=can_open_channel,
         ),
     )
 
